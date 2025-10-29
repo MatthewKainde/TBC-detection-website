@@ -61,8 +61,6 @@ python app.py
 - Input: Grayscale chest X-ray images (224x224 pixels)
 - Output: Binary classification (Normal/Tuberculosis)
 - Based on: Deep learning CNN architecture
-
-## License
 MIT License
 
 ## Author
