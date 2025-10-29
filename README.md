@@ -66,5 +66,10 @@ python app.py
 MIT License
 
 ## Author
-Matthew Kainde
+Tjia, David Rikhy
+Kaumpungan, Franklyn
+Kaseger, Ivan
+Mawuntu, Yeremia 
+Patras, Samuel
+Kainde, Matthew
 - GitHub: [@MatthewKainde](https://github.com/MatthewKainde)
