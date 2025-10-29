@@ -1,63 +1,335 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Tuberculosis Detection</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            text-align: center;
-        }
-        .container {
-            background-color: #f5f5f5;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-        .result {
-            margin: 20px;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        .upload-btn {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .preview-image {
-            max-width: 400px;
-            margin: 20px 0;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tuberculosis Detection</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --deep:#641B2E;
+      --muted:#8A2D3B;
+      --accent:#BE5B50;
+      --light:#FBDB93;
+      --card-bg: rgba(255,255,255,0.04);
+      --glass: rgba(255,255,255,0.06);
+      --radius:12px;
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background: linear-gradient(180deg,var(--deep) 0%, var(--muted) 55%, #3a1a20 100%);
+      color:#fff;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    .page{
+      max-width:980px;
+      margin:40px auto;
+      padding:28px;
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      gap:18px;
+      margin-bottom:22px;
+    }
+
+    .logo {
+      width:68px;
+      height:68px;
+      border-radius:14px;
+      background: linear-gradient(135deg,var(--accent),var(--muted));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+      font-weight:700;
+      font-size:20px;
+      color:var(--light);
+    }
+
+    h1{
+      margin:0;
+      font-size:22px;
+      letter-spacing:0.2px;
+      font-weight:700;
+    }
+
+    p.lead{
+      margin:6px 0 0 0;
+      color: #fff7e8;
+      opacity:0.9;
+      font-size:13px;
+    }
+
+    .card{
+      margin-top:18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+      border-radius:var(--radius);
+      padding:20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      display:grid;
+      grid-template-columns: 1fr 380px;
+      gap:20px;
+      align-items:start;
+    }
+
+    @media (max-width:900px){
+      .card{ grid-template-columns: 1fr; }
+    }
+
+    .left {
+      padding:6px 4px;
+    }
+
+    .instructions{
+      background:var(--glass);
+      border-radius:10px;
+      padding:14px;
+      color:#fff9f2;
+      font-size:14px;
+      line-height:1.45;
+      margin-bottom:14px;
+    }
+
+    .form-wrap{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      margin-top:12px;
+    }
+
+    .file-input {
+      flex:1;
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+
+    input[type="file"]{
+      display:none;
+    }
+
+    .btn {
+      background: linear-gradient(180deg,var(--accent),var(--muted));
+      border: none;
+      color: white;
+      padding:10px 16px;
+      border-radius:10px;
+      cursor:pointer;
+      font-weight:600;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    }
+
+    .btn.secondary{
+      background: transparent;
+      border:1px solid rgba(255,255,255,0.12);
+      color:#fff;
+      padding:10px 14px;
+    }
+
+    .upload-box{
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border: 1px dashed rgba(255,255,255,0.06);
+      padding:14px;
+      border-radius:8px;
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+
+    .upload-preview {
+      width:100%;
+      height:260px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.45));
+      border-radius:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      position:relative;
+    }
+
+    .upload-preview img{
+      max-width:100%;
+      max-height:100%;
+      object-fit:contain;
+      display:block;
+    }
+
+    aside.right {
+      padding:6px;
+    }
+
+    .status-card{
+      background:linear-gradient(180deg, rgba(251,219,147,0.06), rgba(190,91,80,0.02));
+      border-radius:12px;
+      padding:16px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      align-items:stretch;
+    }
+
+    .result-badge{
+      display:inline-block;
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:700;
+      font-size:15px;
+      text-align:center;
+      color:#2b0f10;
+    }
+
+    .result-tb{
+      background:linear-gradient(90deg,var(--accent),var(--muted));
+      color: #fff;
+    }
+
+    .result-normal{
+      background: linear-gradient(90deg, var(--light), #ffe7b7);
+      color:#3a1b12;
+    }
+
+    .meta{
+      color:#fff7e8;
+      font-size:13px;
+      opacity:0.95;
+    }
+
+    .muted{
+      color: rgba(255,255,255,0.75);
+      font-size:13px;
+    }
+
+    footer.note{
+      margin-top:16px;
+      font-size:13px;
+      color:#fff6e0;
+      opacity:0.85;
+    }
+
+    .file-label{
+      background: rgba(255,255,255,0.04);
+      padding:8px 12px;
+      border-radius:8px;
+      border: 1px solid rgba(255,255,255,0.03);
+      cursor:pointer;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    small.hint{ display:block; margin-top:8px; color:rgba(255,255,255,0.65); }
+  </style>
 </head>
 <body>
-    <h1>Tuberculosis Detection System</h1>
-    <div class="container">
-        <h2>Upload Chest X-Ray Image</h2>
-        <form method="post" enctype="multipart/form-data">
-            <input type="file" name="file" accept="image/*" required>
-            <br><br>
-            <input type="submit" value="Detect" class="upload-btn">
+  <div class="page">
+    <header>
+      <div class="logo">TB</div>
+      <div>
+        <h1>Tuberculosis Detection</h1>
+        <p class="lead">Upload a chest X‑ray image to detect signs of tuberculosis — powered by a trained CNN model.</p>
+      </div>
+    </header>
+
+    <main class="card" role="main" aria-labelledby="page-title">
+      <section class="left" aria-label="upload area">
+        <div class="instructions">
+          <strong>How to use</strong>
+          <p class="muted">Choose a clear chest X‑ray image (preferably 224×224 or larger). The model expects grayscale radiographs — the app will convert color images automatically.</p>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" id="uploadForm">
+          <div class="upload-box">
+            <div class="upload-preview" id="preview">
+              {% if image %}
+                <img src="{{ image }}" id="previewImg" alt="Uploaded chest xray preview">
+              {% else %}
+                <div style="text-align:center;color:rgba(255,255,255,0.5);padding:14px">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="opacity:.75"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>
+                  <div style="margin-top:8px;font-size:13px">No image selected</div>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="form-wrap" style="margin-top:12px">
+            <label class="file-label" for="fileInput">
+              <input id="fileInput" name="file" type="file" accept="image/*" onchange="previewFile(event)">
+              <span>Select image</span>
+            </label>
+
+            <button type="submit" class="btn" id="submitBtn">Detect</button>
+            <a class="btn secondary" href="/" role="button">Reset</a>
+          </div>
+
+          <small class="hint">Supported formats: JPG, PNG. Model input will be resized to 224×224 and normalized.</small>
         </form>
 
-        {% if image %}
-        <div class="preview">
-            <h3>Uploaded Image:</h3>
-            <img src="{{ image }}" class="preview-image">
-        </div>
-        {% endif %}
+        <footer class="note">Note: This tool is for demonstration and research purposes only. Not a medical diagnostic device.</footer>
+      </section>
 
-        {% if result %}
-        <div class="result" style="background-color: {% if result == 'Normal' %}#90EE90{% else %}#FFB6C1{% endif %}">
-            <h3>Detection Result:</h3>
-            <p><strong>{{ result }}</strong></p>
+      <aside class="right" aria-label="results">
+        <div class="status-card">
+          <div>
+            <div class="muted">Detection result</div>
+            {% if result %}
+              <div style="margin-top:12px">
+                <span class="result-badge {% if result == 'Normal' %}result-normal{% else %}result-tb{% endif %}">
+                  {{ result }}
+                </span>
+              </div>
+
+              <div style="margin-top:12px" class="meta">
+                Confidence: <strong>{{ '%.2f'|format(pred[0][0] if pred is defined else 0) }}</strong>
+              </div>
+            {% else %}
+              <div style="margin-top:12px" class="muted">No prediction yet — upload an image and press Detect.</div>
+            {% endif %}
+          </div>
+
+          <div style="margin-top:6px" class="muted">Model: TBCdetect.h5 · Input: 224×224 (grayscale)</div>
+          <div style="margin-top:10px; display:flex; gap:8px;">
+            <a class="btn" href="https://github.com/MatthewKainde/TBC-detection-website" target="_blank" rel="noreferrer">View on GitHub</a>
+            <a class="btn secondary" href="#" onclick="document.getElementById('fileInput').click(); return false;">Choose file</a>
+          </div>
         </div>
-        {% endif %}
-    </div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    function previewFile(e){
+      const input = e.target;
+      const previewWrap = document.getElementById('preview');
+      if (!input.files || !input.files[0]) return;
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = function(ev){
+        previewWrap.innerHTML = '<img id="previewImg" src="' + ev.target.result + '" alt="preview">';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // disable submit if no file selected (helps UX)
+    document.getElementById('uploadForm').addEventListener('submit', function(ev){
+      const f = document.getElementById('fileInput');
+      if (!f.files || !f.files[0]){
+        ev.preventDefault();
+        alert('Please select an image before detecting.');
+        return false;
+      }
+      document.getElementById('submitBtn').disabled = true;
+      document.getElementById('submitBtn').textContent = 'Detecting...';
+    });
+  </script>
 </body>
 </html>
