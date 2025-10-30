@@ -289,7 +289,7 @@
               </div>
 
               <div style="margin-top:12px" class="meta">
-                Confidence: <strong>{{ '%.2f'|format(pred[0][0] if pred is defined else 0) }}</strong>
+                Confidence: <strong>{{ '%.2f'|format(confidence_pct if confidence_pct is defined else (confidence*100 if confidence is defined else 0)) }}%</strong>
               </div>
             {% else %}
               <div style="margin-top:12px" class="muted">No prediction yet — upload an image and press Detect.</div>

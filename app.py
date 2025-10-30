@@ -19,9 +19,17 @@ def index():
         img_array = np.expand_dims(img_array, axis=0)
 
         pred = model.predict(img_array)
-        result = 'Tuberculosis Detected' if pred[0][0] > 0.5 else 'Normal'
+        print("DEBUG pred:", pred)   # check raw output in console
+        confidence = float(pred[0][0])
+        # convert to percent for UI if value is 0..1
+        confidence_pct = confidence * 100.0 if confidence <= 1.0 else confidence
+        result = 'Tuberculosis Detected' if confidence > 0.5 else 'Normal'
 
-        return render_template('index.html', result=result, image=img_path)
+        return render_template('index.html',
+                               result=result,
+                               image=img_path,
+                               confidence=confidence,
+                               confidence_pct=confidence_pct)
     return render_template('index.html')
 
 if __name__ == '__main__':
