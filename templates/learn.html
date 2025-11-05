@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="{{ lang or 'en' }}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Learn About Tuberculosis</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --deep:#641B2E;
+      --muted:#8A2D3B;
+      --accent:#BE5B50;
+      --light:#FBDB93;
+      --card-bg: rgba(255,255,255,0.04);
+      --glass: rgba(255,255,255,0.06);
+      --radius:12px;
+    }
+
+    html,body{
+      min-height:100%;
+      margin:0;
+      font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background: linear-gradient(180deg,var(--deep) 0%, var(--muted) 55%, #3a1a20 100%);
+      color:#fff;
+      -webkit-font-smoothing:antialiased;
+    }
+
+    nav {
+      background: rgba(0,0,0,0.25);
+      backdrop-filter: blur(10px);
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    nav .container {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 0 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    nav ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    nav a {
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    nav a:hover, nav a.active {
+      color: var(--light);
+    }
+
+    .lang-switch {
+      display: flex;
+      gap: 8px;
+      background: rgba(255,255,255,0.06);
+      padding: 6px;
+      border-radius: 8px;
+    }
+
+    .lang-switch button {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.7);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .lang-switch button.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .page{
+      max-width:980px;
+      margin:40px auto;
+      padding:28px 28px 60px;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 40px 0;
+      margin-bottom: 40px;
+    }
+
+    .hero h1 {
+      font-size: 36px;
+      margin: 0 0 16px 0;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--light), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 16px;
+      color: rgba(255,255,255,0.85);
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .info-card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .info-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.45);
+    }
+
+    .info-card h2 {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 22px;
+      margin: 0 0 18px 0;
+      font-weight: 600;
+      color: var(--light);
+    }
+
+    .info-card h3 {
+      font-size: 16px;
+      margin: 20px 0 12px 0;
+      font-weight: 600;
+      color: rgba(255,255,255,0.95);
+    }
+
+    .info-card p {
+      line-height: 1.7;
+      color: rgba(255,255,255,0.85);
+      margin: 0 0 14px 0;
+    }
+
+    .info-card ul {
+      margin: 12px 0;
+      padding-left: 24px;
+      line-height: 1.8;
+    }
+
+    .info-card li {
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 8px;
+    }
+
+    .icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--muted));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .progress-diagram {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .stage {
+      background: rgba(255,255,255,0.04);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      transition: all 0.3s;
+      border: 2px solid transparent;
+    }
+
+    .stage:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: var(--accent);
+      transform: scale(1.05);
+    }
+
+    .stage-icon {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 12px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--muted));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: pulse-slow 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse-slow {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
+    }
+
+    .stage h4 {
+      margin: 0 0 8px 0;
+      font-size: 15px;
+      color: var(--light);
+    }
+
+    .stage p {
+      font-size: 13px;
+      color: rgba(255,255,255,0.75);
+      margin: 0;
+    }
+
+    .reference-links {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .ref-link {
+      background: linear-gradient(135deg, rgba(190,91,80,0.15), rgba(138,45,59,0.15));
+      border-radius: 10px;
+      padding: 20px;
+      text-decoration: none;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: all 0.3s;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .ref-link:hover {
+      background: linear-gradient(135deg, rgba(190,91,80,0.25), rgba(138,45,59,0.25));
+      transform: translateX(8px);
+      border-color: var(--accent);
+    }
+
+    .ref-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .ref-content h4 {
+      margin: 0 0 4px 0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .ref-content p {
+      margin: 0;
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .warning-box {
+      background: linear-gradient(135deg, rgba(251,219,147,0.15), rgba(190,91,80,0.1));
+      border-left: 4px solid var(--light);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+
+    .warning-box p {
+      margin: 0;
+      color: rgba(255,255,255,0.9);
+      font-size: 14px;
+    }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 28px; }
+      .progress-diagram { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <ul>
+        <li><a href="/">Detection</a></li>
+        <li><a href="/learn" class="active">Learn about TB</a></li>
+        <li><a href="/dashboard">Dashboard</a></li>
+      </ul>
+      <div class="lang-switch">
+        <button onclick="setLanguage('en')" class="{{ 'active' if lang == 'en' else '' }}">EN</button>
+        <button onclick="setLanguage('id')" class="{{ 'active' if lang == 'id' else '' }}">ID</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page">
+    <div class="hero">
+      <h1>{{ 'Understanding Tuberculosis' if lang == 'en' else 'Memahami Tuberkulosis' }}</h1>
+      <p>{{ 'Learn about TB symptoms, prevention methods, and available treatments to protect yourself and your community.' if lang == 'en' else 'Pelajari tentang gejala TB, metode pencegahan, dan pengobatan yang tersedia untuk melindungi diri Anda dan komunitas Anda.' }}</p>
+    </div>
+
+    <!-- What is TB -->
+    <div class="info-card">
+      <h2>
+        <div class="icon-box">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 16v-4M12 8h.01"/>
+          </svg>
+        </div>
+        {{ 'What is Tuberculosis?' if lang == 'en' else 'Apa itu Tuberkulosis?' }}
+      </h2>
+      <p>
+        {% if lang == 'en' %}
+        Tuberculosis (TB) is an infectious disease caused by the bacterium <strong>Mycobacterium tuberculosis</strong>. It primarily affects the lungs but can also impact other parts of the body. TB spreads through airborne particles when an infected person coughs, sneezes, or speaks.
+        {% else %}
+        Tuberkulosis (TB) adalah penyakit menular yang disebabkan oleh bakteri <strong>Mycobacterium tuberculosis</strong>. Penyakit ini terutama menyerang paru-paru tetapi juga dapat berdampak pada bagian tubuh lainnya. TB menyebar melalui partikel udara ketika orang yang terinfeksi batuk, bersin, atau berbicara.
+        {% endif %}
+      </p>
+      <p>
+        {% if lang == 'en' %}
+        TB remains one of the world's deadliest infectious diseases, but it is both preventable and curable with proper treatment. Early detection through chest X-rays and other diagnostic tools is crucial for successful treatment outcomes.
+        {% else %}
+        TB tetap menjadi salah satu penyakit menular paling mematikan di dunia, tetapi dapat dicegah dan disembuhkan dengan pengobatan yang tepat. Deteksi dini melalui X-ray dada dan alat diagnostik lainnya sangat penting untuk hasil pengobatan yang sukses.
+        {% endif %}
+      </p>
+    </div>
+
+    <!-- Lung Infection Progression -->
+    <div class="info-card">
+      <h2>
+        <div class="icon-box">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </div>
+        {{ 'Lung Infection Progression' if lang == 'en' else 'Perkembangan Infeksi Paru-paru' }}
+      </h2>
+      
+      <div class="progress-diagram">
+        <div class="stage">
+          <div class="stage-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+            </svg>
+          </div>
+          <h4>{{ 'Stage 1: Exposure' if lang == 'en' else 'Tahap 1: Paparan' }}</h4>
+          <p>{{ 'TB bacteria enter the lungs through inhalation of infected droplets' if lang == 'en' else 'Bakteri TB masuk ke paru-paru melalui menghirup tetesan yang terinfeksi' }}</p>
+        </div>
+
+        <div class="stage">
+          <div class="stage-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+              <path d="M12 2v20M2 12h20"/>
+            </svg>
+          </div>
+          <h4>{{ 'Stage 2: Latent TB' if lang == 'en' else 'Tahap 2: TB Laten' }}</h4>
+          <p>{{ 'Bacteria are present but inactive. No symptoms, not contagious' if lang == 'en' else 'Bakteri hadir tetapi tidak aktif. Tidak ada gejala, tidak menular' }}</p>
+        </div>
+
+        <div class="stage">
+          <div class="stage-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <h4>{{ 'Stage 3: Active TB' if lang == 'en' else 'Tahap 3: TB Aktif' }}</h4>
+          <p>{{ 'Bacteria multiply and damage lung tissue. Symptoms appear, highly contagious' if lang == 'en' else 'Bakteri berkembang biak dan merusak jaringan paru-paru. Gejala muncul, sangat menular' }}</p>
+        </div>
+
+        <div class="stage">
+          <div class="stage-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+          <h4>{{ 'Stage 4: Recovery' if lang == 'en' else 'Tahap 4: Pemulihan' }}</h4>
+          <p>{{ 'With treatment, bacteria are eliminated and lung tissue heals over 6+ months' if lang == 'en' else 'Dengan pengobatan, bakteri dieliminasi dan jaringan paru-paru sembuh selama 6+ bulan' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Symptoms -->
+    <div class="info-card">
+      <h2>
+        <div class="icon-box">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        {{ 'Common Symptoms' if lang == 'en' else 'Gejala Umum' }}
+      </h2>
+      <p>{{ 'Active TB infection typically presents with the following symptoms:' if lang == 'en' else 'Infeksi TB aktif biasanya menunjukkan gejala berikut:' }}</p>
+      <ul>
+        <li>{{ 'Persistent cough lasting 3+ weeks (may produce blood)' if lang == 'en' else 'Batuk persisten selama 3+ minggu (mungkin mengeluarkan darah)' }}</li>
+        <li>{{ 'Chest pain or discomfort when breathing or coughing' if lang == 'en' else 'Nyeri dada atau ketidaknyamanan saat bernapas atau batuk' }}</li>
+        <li>{{ 'Unexplained weight loss and loss of appetite' if lang == 'en' else 'Penurunan berat badan yang tidak dapat dijelaskan dan kehilangan nafsu makan' }}</li>
+        <li>{{ 'Fever, chills, and night sweats' if lang == 'en' else 'Demam, menggigil, dan keringat malam' }}</li>
+        <li>{{ 'Extreme fatigue and weakness' if lang == 'en' else 'Kelelahan ekstrem dan kelemahan' }}</li>
+      </ul>
+      
+      <div class="warning-box">
+        <p><strong>⚠️ {{ 'Important:' if lang == 'en' else 'Penting:' }}</strong> {{ 'If you experience these symptoms, especially a persistent cough, seek medical attention immediately. Early diagnosis is crucial for effective treatment.' if lang == 'en' else 'Jika Anda mengalami gejala ini, terutama batuk yang terus-menerus, segera cari pertolongan medis. Diagnosis dini sangat penting untuk pengobatan yang efektif.' }}</p>
+      </div>
+    </div>
+
+    <!-- Prevention -->
+    <div class="info-card">
+      <h2>
+        <div class="icon-box">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        {{ 'Prevention Tips' if lang == 'en' else 'Tips Pencegahan' }}
+      </h2>
+      <p>{{ 'Protect yourself and others from TB with these prevention strategies:' if lang == 'en' else 'Lindungi diri Anda dan orang lain dari TB dengan strategi pencegahan ini:' }}</p>
+      
+      <h3>{{ 'For Everyone:' if lang == 'en' else 'Untuk Semua Orang:' }}</h3>
+      <ul>
+        <li>{{ 'Get vaccinated with BCG (Bacillus Calmette-Guérin) vaccine, especially in high-risk areas' if lang == 'en' else 'Dapatkan vaksinasi BCG (Bacillus Calmette-Guérin), terutama di daerah berisiko tinggi' }}</li>
+        <li>{{ 'Maintain good ventilation in living and working spaces' if lang == 'en' else 'Pertahankan ventilasi yang baik di ruang tinggal dan kerja' }}</li>
+        <li>{{ 'Cover your mouth when coughing or sneezing' if lang == 'en' else 'Tutup mulut Anda saat batuk atau bersin' }}</li>
+        <li>{{ 'Maintain a healthy immune system through proper nutrition and exercise' if lang == 'en' else 'Pertahankan sistem kekebalan tubuh yang sehat melalui nutrisi dan olahraga yang tepat' }}</li>
+      </ul>
+
+      <h3>{{ 'If You Have TB:' if lang == 'en' else 'Jika Anda Memiliki TB:' }}</h3>
+      <ul>
+        <li>{{ 'Complete your full course of treatment as prescribed' if lang == 'en' else 'Selesaikan seluruh pengobatan sesuai resep' }}</li>
+        <li>{{ 'Isolate yourself during the first 2-3 weeks of treatment' if lang == 'en' else 'Isolasi diri Anda selama 2-3 minggu pertama pengobatan' }}</li>
+        <li>{{ 'Wear a mask when around others' if lang == 'en' else 'Kenakan masker saat berada di sekitar orang lain' }}</li>
+        <li>{{ 'Avoid close contact with vulnerable populations (children, elderly, immunocompromised)' if lang == 'en' else 'Hindari kontak dekat dengan populasi rentan (anak-anak, lansia, immunocompromised)' }}</li>
+      </ul>
+    </div>
+
+    <!-- Treatment -->
+    <div class="info-card">
+      <h2>
+        <div class="icon-box">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
+        {{ 'Treatment Options' if lang == 'en' else 'Opsi Pengobatan' }}
+      </h2>
+      <p>{{ 'TB is curable with proper antibiotic treatment. The standard treatment involves:' if lang == 'en' else 'TB dapat disembuhkan dengan pengobatan antibiotik yang tepat. Pengobatan standar meliputi:' }}</p>
+      
+      <h3>{{ 'Drug-Susceptible TB:' if lang == 'en' else 'TB yang Sensitif terhadap Obat:' }}</h3>
+      <ul>
+        <li>{{ '6-month treatment regimen with multiple antibiotics' if lang == 'en' else 'Regimen pengobatan 6 bulan dengan beberapa antibiotik' }}</li>
+        <li>{{ 'First-line drugs: Isoniazid, Rifampicin, Ethambutol, Pyrazinamide' if lang == 'en' else 'Obat lini pertama: Isoniazid, Rifampisin, Etambutol, Pirazinamid' }}</li>
+        <li>{{ 'Daily medication adherence is critical for success' if lang == 'en' else 'Kepatuhan minum obat harian sangat penting untuk kesuksesan' }}</li>
+      </ul>
+
+      <h3>{{ 'Drug-Resistant TB:' if lang == 'en' else 'TB yang Resisten terhadap Obat:' }}</h3>
+      <ul>
+        <li>{{ 'Longer treatment duration (9-20 months)' if lang == 'en' else 'Durasi pengobatan yang lebih lama (9-20 bulan)' }}</li>
+        <li>{{ 'Second-line drugs with potential side effects' if lang == 'en' else 'Obat lini kedua dengan potensi efek samping' }}</li>
+        <li>{{ 'Requires close medical supervision' if lang == 'en' else 'Memerlukan pengawasan medis yang ketat' }}</li>
+      </ul>
+
+      <div class="warning-box">
+        <p><strong>⚠️ {{ 'Critical:' if lang == 'en' else 'Kritis:' }}</strong> {{ 'Never stop treatment early, even if you feel better. Incomplete treatment can lead to drug-resistant TB, which is much harder to cure.' if lang == 'en' else 'Jangan pernah menghentikan pengobatan lebih awal, bahkan jika Anda merasa lebih baik. Pengobatan yang tidak lengkap dapat menyebabkan TB yang resisten terhadap obat, yang jauh lebih sulit disembuhkan.' }}</p>
+      </div>
+    </div>
+
+    <!-- References -->
+    <div class="info-card">
+      <h2>
+        <div class="icon-box">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+        </div>
+        {{ 'Reference Resources' if lang == 'en' else 'Sumber Referensi' }}
+      </h2>
+      <p>{{ 'For more detailed information about tuberculosis, visit these trusted sources:' if lang == 'en' else 'Untuk informasi lebih rinci tentang tuberkulosis, kunjungi sumber terpercaya berikut:' }}</p>
+
+      <div class="reference-links">
+        <a href="https://www.who.int/health-topics/tuberculosis" target="_blank" rel="noopener noreferrer" class="ref-link">
+          <div class="ref-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M2 12h20"/>
+            </svg>
+          </div>
+          <div class="ref-content">
+            <h4>WHO - Tuberculosis</h4>
+            <p>{{ 'Global TB statistics and guidelines' if lang == 'en' else 'Statistik dan pedoman TB global' }}</p>
+          </div>
+        </a>
+
+        <a href="https://www.cdc.gov/tb/" target="_blank" rel="noopener noreferrer" class="ref-link">
+          <div class="ref-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+              <path d="M12 2v20M2 12h20"/>
+            </svg>
+          </div>
+          <div class="ref-content">
+            <h4>CDC - Tuberculosis</h4>
+            <p>{{ 'Prevention and treatment information' if lang == 'en' else 'Informasi pencegahan dan pengobatan' }}</p>
+          </div>
+        </a>
+
+        <a href="https://www.stoptb.org/" target="_blank" rel="noopener noreferrer" class="ref-link">
+          <div class="ref-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div class="ref-content">
+            <h4>Stop TB Partnership</h4>
+            <p>{{ 'Global advocacy and resources' if lang == 'en' else 'Advokasi dan sumber daya global' }}</p>
+          </div>
+        </a>
+
+        <a href="https://www.tbindonesia.or.id/" target="_blank" rel="noopener noreferrer" class="ref-link">
+          <div class="ref-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+          </div>
+          <div class="ref-content">
+            <h4>TB Indonesia</h4>
+            <p>{{ 'Indonesian TB information' if lang == 'en' else 'Informasi TB Indonesia' }}</p>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function setLanguage(lang) {
+      fetch(`/set_language/${lang}`)
+        .then(response => response.json())
+        .then(data => {
+          location.reload();
+        });
+    }
+  </script>
+</body>
+</html>

@@ -1,12 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang or 'en' }}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tuberculosis Detection</title>
-
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-
   <style>
     :root{
       --deep:#641B2E;
@@ -26,6 +24,68 @@
       color:#fff;
       -webkit-font-smoothing:antialiased;
       -moz-osx-font-smoothing:grayscale;
+    }
+
+    /* Navigation Bar */
+    nav {
+      background: rgba(0,0,0,0.25);
+      backdrop-filter: blur(10px);
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    nav .container {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 0 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    nav ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    nav a {
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    nav a:hover, nav a.active {
+      color: var(--light);
+    }
+
+    .lang-switch {
+      display: flex;
+      gap: 8px;
+      background: rgba(255,255,255,0.06);
+      padding: 6px;
+      border-radius: 8px;
+    }
+
+    .lang-switch button {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.7);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .lang-switch button.active {
+      background: var(--accent);
+      color: white;
     }
 
     .page{
@@ -67,6 +127,90 @@
       color: #fff7e8;
       opacity:0.9;
       font-size:13px;
+    }
+
+    /* Sample Images Section */
+    .samples-section {
+      margin-top: 28px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+
+    .samples-section h2 {
+      margin: 0 0 18px 0;
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .samples-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .sample-card {
+      background: rgba(255,255,255,0.04);
+      border-radius: 10px;
+      padding: 0;
+      transition: transform 0.2s, box-shadow 0.2s;
+      overflow: hidden;
+    }
+
+    .sample-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .sample-img {
+      width: 100%;
+      height: auto; /* biar menyesuaikan gambar */
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .sample-img img {
+      width: 100%;
+      height: auto;
+      object-fit: cover; /* gambar proporsional */
+      display: block;
+      border-radius: 8px;
+    }
+
+
+    .sample-img svg {
+      width: 80px;
+      height: 80px;
+      opacity: 0.4;
+    }
+
+    .sample-label {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .sample-label.normal {
+      background: linear-gradient(90deg, var(--light), #ffe7b7);
+      color: #3a1b12;
+    }
+
+    .sample-label.infected {
+      background: linear-gradient(90deg, var(--accent), var(--muted));
+      color: white;
+    }
+
+    .sample-desc {
+      font-size: 13px;
+      color: rgba(255,255,255,0.75);
+      line-height: 1.5;
     }
 
     .card{
@@ -126,6 +270,13 @@
       cursor:pointer;
       font-weight:600;
       box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+      text-decoration: none;
+      display: inline-block;
+      transition: transform 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
     }
 
     .btn.secondary{
@@ -228,23 +379,46 @@
     }
 
     small.hint{ display:block; margin-top:8px; color:rgba(255,255,255,0.65); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .icon-pulse {
+      animation: pulse 2s ease-in-out infinite;
+    }
   </style>
 </head>
 <body>
+  <nav>
+    <div class="container">
+      <ul>
+        <li><a href="/" class="active">Detection</a></li>
+        <li><a href="/learn">Learn about TB</a></li>
+        <li><a href="/dashboard">Dashboard</a></li>
+      </ul>
+      <div class="lang-switch">
+        <button onclick="setLanguage('en')" class="{{ 'active' if lang == 'en' else '' }}">EN</button>
+        <button onclick="setLanguage('id')" class="{{ 'active' if lang == 'id' else '' }}">ID</button>
+      </div>
+    </div>
+  </nav>
+
   <div class="page">
     <header>
       <div class="logo">TB</div>
       <div>
-        <h1>Tuberculosis Detection</h1>
-        <p class="lead">Upload a chest X‑ray image to detect signs of tuberculosis — powered by a trained CNN model.</p>
+        <h1>{{ 'Tuberculosis Detection' if lang == 'en' else 'Deteksi Tuberkulosis' }}</h1>
+        <p class="lead">{{ 'Upload a chest X‑ray image to detect signs of tuberculosis — powered by a trained CNN model.' if lang == 'en' else 'Unggah gambar X‑ray dada untuk mendeteksi tanda-tanda tuberkulosis — didukung oleh model CNN terlatih.' }}</p>
       </div>
     </header>
 
-    <main class="card" role="main" aria-labelledby="page-title">
+    <main class="card" role="main">
       <section class="left" aria-label="upload area">
         <div class="instructions">
-          <strong>How to use</strong>
-          <p class="muted">Choose a clear chest X‑ray image (preferably 224×224 or larger). The model expects grayscale radiographs — the app will convert color images automatically.</p>
+          <strong>{{ 'How to use' if lang == 'en' else 'Cara menggunakan' }}</strong>
+          <p class="muted">{{ 'Choose a clear chest X‑ray image (preferably 224×224 or larger). The model expects grayscale radiographs — the app will convert color images automatically.' if lang == 'en' else 'Pilih gambar X‑ray dada yang jelas (sebaiknya 224×224 atau lebih besar). Model mengharapkan radiografi grayscale — aplikasi akan mengonversi gambar berwarna secara otomatis.' }}</p>
         </div>
 
         <form method="post" enctype="multipart/form-data" id="uploadForm">
@@ -254,8 +428,8 @@
                 <img src="{{ image }}" id="previewImg" alt="Uploaded chest xray preview">
               {% else %}
                 <div style="text-align:center;color:rgba(255,255,255,0.5);padding:14px">
-                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="opacity:.75"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>
-                  <div style="margin-top:8px;font-size:13px">No image selected</div>
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="opacity:.75" class="icon-pulse"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>
+                  <div style="margin-top:8px;font-size:13px">{{ 'No image selected' if lang == 'en' else 'Tidak ada gambar dipilih' }}</div>
                 </div>
               {% endif %}
             </div>
@@ -264,46 +438,83 @@
           <div class="form-wrap" style="margin-top:12px">
             <label class="file-label" for="fileInput">
               <input id="fileInput" name="file" type="file" accept="image/*" onchange="previewFile(event)">
-              <span>Select image</span>
+              <span>{{ 'Select image' if lang == 'en' else 'Pilih gambar' }}</span>
             </label>
 
-            <button type="submit" class="btn" id="submitBtn">Detect</button>
-            <a class="btn secondary" href="/" role="button">Reset</a>
+            <button type="submit" class="btn" id="submitBtn">{{ 'Detect' if lang == 'en' else 'Deteksi' }}</button>
+            <a class="btn secondary" href="/" role="button">{{ 'Reset' if lang == 'en' else 'Ulang' }}</a>
           </div>
 
-          <small class="hint">Supported formats: JPG, PNG. Model input will be resized to 224×224 and normalized.</small>
+          <small class="hint">{{ 'Supported formats: JPG, PNG. Model input will be resized to 224×224 and normalized.' if lang == 'en' else 'Format yang didukung: JPG, PNG. Input model akan diubah ukurannya menjadi 224×224 dan dinormalisasi.' }}</small>
         </form>
 
-        <footer class="note">Note: This tool is for demonstration and research purposes only. Not a medical diagnostic device.</footer>
+        <footer class="note">{{ 'Note: This tool is for demonstration and research purposes only. Not a medical diagnostic device.' if lang == 'en' else 'Catatan: Alat ini hanya untuk tujuan demonstrasi dan penelitian. Bukan perangkat diagnostik medis.' }}</footer>
       </section>
 
       <aside class="right" aria-label="results">
         <div class="status-card">
           <div>
-            <div class="muted">Detection result</div>
+            <div class="muted">{{ 'Detection result' if lang == 'en' else 'Hasil deteksi' }}</div>
             {% if result %}
               <div style="margin-top:12px">
                 <span class="result-badge {% if result == 'Normal' %}result-normal{% else %}result-tb{% endif %}">
-                  {{ result }}
+                  {{ result if lang == 'en' else ('Normal' if result == 'Normal' else 'Tuberkulosis Terdeteksi') }}
                 </span>
               </div>
 
               <div style="margin-top:12px" class="meta">
-                Confidence: <strong>{{ '%.2f'|format(confidence_pct if confidence_pct is defined else (confidence*100 if confidence is defined else 0)) }}%</strong>
+                {{ 'Confidence' if lang == 'en' else 'Kepercayaan' }}: <strong>{{ '%.2f'|format(confidence_pct if confidence_pct is defined else (confidence*100 if confidence is defined else 0)) }}%</strong>
               </div>
             {% else %}
-              <div style="margin-top:12px" class="muted">No prediction yet — upload an image and press Detect.</div>
+              <div style="margin-top:12px" class="muted">{{ 'No prediction yet — upload an image and press Detect.' if lang == 'en' else 'Belum ada prediksi — unggah gambar dan tekan Deteksi.' }}</div>
             {% endif %}
           </div>
 
           <div style="margin-top:6px" class="muted">Model: TBCdetect.h5 · Input: 224×224 (grayscale)</div>
           <div style="margin-top:10px; display:flex; gap:8px;">
             <a class="btn" href="https://github.com/MatthewKainde/TBC-detection-website" target="_blank" rel="noreferrer">View on GitHub</a>
-            <a class="btn secondary" href="#" onclick="document.getElementById('fileInput').click(); return false;">Choose file</a>
+            <a class="btn secondary" href="#" onclick="document.getElementById('fileInput').click(); return false;">{{ 'Choose file' if lang == 'en' else 'Pilih file' }}</a>
           </div>
         </div>
       </aside>
     </main>
+
+    <!-- Sample Images Section -->
+<section class="samples-section">
+  <h2>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/>
+      <polyline points="21 15 16 10 5 21"/>
+    </svg>
+    {{ 'Sample X-Ray Comparison' if lang == 'en' else 'Perbandingan Contoh X-Ray' }}
+  </h2>
+
+  <div class="samples-grid">
+    <!-- Normal Sample -->
+    <div class="sample-card">
+      <div class="sample-img">
+        <img src="{{ url_for('static', filename='asset/Normal-1.png') }}" alt="Normal X-Ray">
+      </div>
+      <span class="sample-label normal">{{ 'Normal' if lang == 'en' else 'Normal' }}</span>
+      <p class="sample-desc">
+        {{ 'Clear lung fields with normal bronchial patterns. No signs of infiltration, cavitation, or nodules.' if lang == 'en' else 'Bidang paru-paru yang jelas dengan pola bronkial normal. Tidak ada tanda-tanda infiltrasi, kavitasi, atau nodul.' }}
+      </p>
+    </div>
+
+    <!-- TB Sample -->
+    <div class="sample-card">
+      <div class="sample-img">
+        <img src="{{ url_for('static', filename='asset/Tuberculosis-1.png') }}" alt="Tuberculosis X-Ray">
+      </div>
+      <span class="sample-label infected">{{ 'TB Infected' if lang == 'en' else 'Terinfeksi TB' }}</span>
+      <p class="sample-desc">
+        {{ 'Visible infiltrates in upper lobes, cavitary lesions, and increased opacity. Classic signs of active tuberculosis infection.' if lang == 'en' else 'Infiltrat terlihat di lobus atas, lesi kavitasi, dan peningkatan opasitas. Tanda klasik infeksi tuberkulosis aktif.' }}
+      </p>
+    </div>
+  </div>
+</section>
+
   </div>
 
   <script>
@@ -319,17 +530,29 @@
       reader.readAsDataURL(file);
     }
 
-    // disable submit if no file selected (helps UX)
     document.getElementById('uploadForm').addEventListener('submit', function(ev){
       const f = document.getElementById('fileInput');
       if (!f.files || !f.files[0]){
         ev.preventDefault();
-        alert('Please select an image before detecting.');
+        const lang = '{{ lang }}';
+        alert(lang === 'en' ? 'Please select an image before detecting.' : 'Silakan pilih gambar sebelum mendeteksi.');
         return false;
       }
       document.getElementById('submitBtn').disabled = true;
-      document.getElementById('submitBtn').textContent = 'Detecting...';
+      document.getElementById('submitBtn').textContent = '{{ "Detecting..." if lang == "en" else "Mendeteksi..." }}';
     });
+
+    function setLanguage(lang) {
+      fetch(`/set_language/${lang}`)
+        .then(response => response.json())
+        .then(data => {
+          location.reload();
+        });
+    }
+
+    // Load theme preference
+    const theme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
   </script>
 </body>
 </html>
