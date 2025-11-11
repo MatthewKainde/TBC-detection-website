@@ -1,7 +1,7 @@
 {
-  "total_scans": 13,
-  "tb_cases": 9,
-  "normal_cases": 4,
+  "total_scans": 17,
+  "tb_cases": 12,
+  "normal_cases": 5,
   "sensitivity": 0,
   "specificity": 0,
   "precision": 0,

@@ -9,6 +9,10 @@ from flask import Flask, render_template, request, redirect, session, jsonify, f
 from werkzeug.utils import secure_filename
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
+from datetime import datetime
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here_change_me_in_production'
@@ -137,35 +141,29 @@ def validate_chest_xray(img_cv):
         if img_cv is None:
             return False, "Failed to read image"
         
-        # Convert to grayscale if needed
         if len(img_cv.shape) == 3:
             img_gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
         else:
             img_gray = img_cv
         
-        # Resize to standard size for analysis
         img_resized = cv2.resize(img_gray, (224, 224))
         
-        # Check image statistics
         mean_val = np.mean(img_resized)
         std_dev = np.std(img_resized)
         
         print(f"Image validation - Mean: {mean_val:.2f}, Std: {std_dev:.2f}")
         
-        # RELAXED: X-ray images should have some contrast (std > 5)
         if std_dev < 5:
             return False, "Image lacks contrast"
         
-        # RELAXED: Check brightness is reasonable (not pure white or black)
         if mean_val < 10 or mean_val > 245:
             return False, "Image is too dark or too bright"
         
-        # RELAXED: Not entirely uniform color
         hist = cv2.calcHist([img_resized], [0], None, [256], [0, 256])
         max_hist = np.max(hist)
         total_pixels = img_resized.size
         
-        if max_hist > (total_pixels * 0.6):  # Relaxed from 0.4
+        if max_hist > (total_pixels * 0.6):
             return False, "Image appears to be mostly uniform color"
         
         print("✓ Image passed validation")
@@ -213,6 +211,35 @@ def overlay_gradcam(original_img, heatmap):
         print(f"Overlay error: {e}")
         return original_img
 
+def generate_chart(tb_count, normal_count):
+    """Generate a pie chart of predictions"""
+    if tb_count == 0 and normal_count == 0:
+        return None
+    
+    fig, ax = plt.subplots(figsize=(6, 6), facecolor='#641B2E')
+    ax.set_facecolor('#641B2E')
+    
+    colors = ['#BE5B50', '#FBDB93']
+    labels = ['TB Detected', 'Normal']
+    sizes = [tb_count, normal_count]
+    
+    wedges, texts, autotexts = ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%',
+                                        startangle=90, textprops={'color': 'white', 'fontsize': 12})
+    
+    for autotext in autotexts:
+        autotext.set_color('#2b0f10')
+        autotext.set_fontweight('bold')
+    
+    ax.set_title('Prediction Distribution', color='white', fontsize=14, pad=20)
+    
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', facecolor='#641B2E', edgecolor='none', bbox_inches='tight')
+    buf.seek(0)
+    chart_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    plt.close()
+    
+    return f"data:image/png;base64,{chart_base64}"
+
 @app.route('/set_language/<lang>')
 def set_language(lang):
     session['lang'] = lang if lang in ['en', 'id'] else 'en'
@@ -240,7 +267,6 @@ def index():
                 flash('Invalid file type. Please upload JPG or PNG images.', 'error')
                 return redirect(request.url)
             
-            # Read file data
             img_data = file.read()
             if not img_data:
                 flash('File is empty', 'error')
@@ -248,7 +274,6 @@ def index():
             
             print(f"File received: {file.filename}, Size: {len(img_data)} bytes")
             
-            # Decode image with OpenCV
             try:
                 img_cv = cv2.imdecode(np.frombuffer(img_data, np.uint8), cv2.IMREAD_GRAYSCALE)
                 if img_cv is None:
@@ -260,19 +285,15 @@ def index():
                 flash(f'Failed to decode image: {str(e)}', 'error')
                 return redirect(request.url)
             
-            # Check image dimensions - RELAXED
             if img_cv.shape[0] < 50 or img_cv.shape[1] < 50:
                 flash('Image is too small. Please upload a larger image (min 50x50px).', 'error')
                 return redirect(request.url)
             
-            # Validate image - can skip if validation fails now
             is_valid_xray, validation_msg = validate_chest_xray(img_cv)
             if not is_valid_xray:
                 print(f"Validation warning: {validation_msg}")
-                # Don't reject, just warn
                 flash(f'⚠️ Warning: {validation_msg}', 'warning')
             
-            # Process image for model
             try:
                 img = image.load_img(io.BytesIO(img_data), target_size=(224, 224), color_mode='grayscale')
                 img_array = image.img_to_array(img)
@@ -285,7 +306,6 @@ def index():
                 flash(f'Error processing image: {str(e)}', 'error')
                 return redirect(request.url)
             
-            # Make prediction
             try:
                 prediction = model.predict(img_array, verbose=0)
                 print(f"Raw prediction: {prediction}")
@@ -305,7 +325,6 @@ def index():
                 if confidence_pct < 60:
                     flash(f'⚠️ Low confidence ({confidence_pct:.1f}%). Results may not be reliable. Consult a medical professional.', 'warning')
                 
-                # Update statistics
                 update_stats(result)
                 
             except Exception as e:
@@ -313,15 +332,12 @@ def index():
                 flash(f'Error during prediction: {str(e)}', 'error')
                 return redirect(request.url)
             
-            # Generate visualizations
             try:
                 original_img = cv2.resize(img_cv, (224, 224))
                 
-                # Encode original image
                 _, buffer = cv2.imencode('.png', original_img)
                 image_base64 = 'data:image/png;base64,' + base64.b64encode(buffer).decode()
                 
-                # Generate Grad-CAM
                 heatmap = generate_gradcam(model, img_array, model_layer_name)
                 if heatmap is not None:
                     original_bgr = cv2.cvtColor(original_img, cv2.COLOR_GRAY2BGR)
@@ -355,7 +371,13 @@ def dashboard():
     stats['accuracy_rate'] = calculate_accuracy(stats) if total > 0 else 0
     stats['total'] = total
     
-    return render_template('dashboard.html', lang=session.get('lang', 'en'), stats=stats)
+    # Generate chart for dashboard
+    tb_count = stats.get('tb_cases', 0)
+    normal_count = stats.get('normal_cases', 0)
+    chart_url = generate_chart(tb_count, normal_count)
+    stats['chart_url'] = chart_url  # Add this line
+    
+    return render_template('dashboard.html', lang=session.get('lang', 'en'), stats=stats, chart_url=chart_url)
 
 @app.route('/api/reset-stats', methods=['POST'])
 def reset_stats():
