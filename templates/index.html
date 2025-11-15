@@ -1,684 +1,945 @@
 <!DOCTYPE html>
 <html lang="{{ lang or 'en' }}">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Tuberculosis Detection</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    :root {
-      --deep: #641B2E;
-      --muted: #8A2D3B;
-      --accent: #BE5B50;
-      --light: #FBDB93;
-      --dark-bg: #1a0f14;
-      --radius: 16px;
-      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html, body {
-      font-family: 'Poppins', system-ui, -apple-system, sans-serif;
-      background: linear-gradient(135deg, var(--deep) 0%, var(--muted) 50%, var(--dark-bg) 100%);
-      color: #fff;
-    }
-
-    /* Navigation Bar */
-    nav {
-      background: rgba(10, 5, 8, 0.5);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 16px 0;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    nav .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    nav ul {
-      list-style: none;
-      display: flex;
-      gap: 32px;
-      align-items: center;
-    }
-
-    nav a {
-      color: rgba(255, 255, 255, 0.8);
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 500;
-      transition: var(--transition);
-      position: relative;
-    }
-
-    nav a::after {
-      content: '';
-      position: absolute;
-      bottom: -4px;
-      left: 0;
-      width: 0;
-      height: 2px;
-      background: var(--light);
-      transition: var(--transition);
-    }
-
-    nav a:hover::after, nav a.active::after {
-      width: 100%;
-    }
-
-    nav a:hover, nav a.active {
-      color: var(--light);
-    }
-
-    .lang-switch {
-      display: flex;
-      gap: 8px;
-      background: rgba(255, 255, 255, 0.08);
-      padding: 8px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .lang-switch button {
-      background: transparent;
-      border: none;
-      color: rgba(255, 255, 255, 0.7);
-      padding: 8px 14px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      transition: var(--transition);
-    }
-
-    .lang-switch button.active {
-      background: linear-gradient(135deg, var(--accent), var(--muted));
-      color: white;
-    }
-
-    /* Main Page Container */
-    .page {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 48px 24px;
-      min-height: calc(100vh - 80px);
-    }
-
-    header {
-      text-align: center;
-      margin-bottom: 48px;
-      animation: fadeIn 0.8s ease-in;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .logo {
-      display: inline-block;
-      width: 60px;
-      height: 60px;
-      background: linear-gradient(135deg, var(--accent), var(--muted));
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-      margin-bottom: 20px;
-    }
-
-    h1 {
-      font-size: 42px;
-      font-weight: 700;
-      color: var(--light);
-      margin-bottom: 12px;
-    }
-
-    p.lead {
-      font-size: 16px;
-      color: rgba(255, 255, 255, 0.8);
-      line-height: 1.6;
-    }
-
-    /* Main Layout */
-    .container-main {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 32px;
-      margin-bottom: 32px;
-    }
-
-    @media (max-width: 1024px) {
-      .container-main {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .left {
-      animation: slideUp 0.8s ease-out 0.2s backwards;
-    }
-
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(40px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .instructions {
-      background: rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: var(--radius);
-      padding: 24px;
-      margin-bottom: 24px;
-    }
-
-    .instructions strong {
-      color: var(--light);
-      display: block;
-      margin-bottom: 12px;
-      font-size: 15px;
-    }
-
-    .instructions p {
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    /* Alerts */
-    .alert {
-      padding: 16px 20px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      animation: slideDown 0.4s ease-out;
-    }
-
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .alert-error {
-      background: rgba(255, 87, 87, 0.15);
-      border: 1px solid rgba(255, 87, 87, 0.3);
-      color: #ff5757;
-    }
-
-    .alert-warning {
-      background: rgba(255, 193, 7, 0.15);
-      border: 1px solid rgba(255, 193, 7, 0.3);
-      color: #ffc107;
-    }
-
-    .alert-success {
-      background: rgba(76, 175, 80, 0.15);
-      border: 1px solid rgba(76, 175, 80, 0.3);
-      color: #4caf50;
-    }
-
-    .alert-close {
-      background: none;
-      border: none;
-      color: inherit;
-      cursor: pointer;
-      font-size: 20px;
-      opacity: 0.7;
-      transition: var(--transition);
-    }
-
-    .alert-close:hover {
-      opacity: 1;
-    }
-
-    /* Upload Box */
-    .upload-box {
-      background: rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(10px);
-      border: 2px dashed rgba(255, 255, 255, 0.3);
-      border-radius: var(--radius);
-      padding: 48px 24px;
-      text-align: center;
-      cursor: pointer;
-      transition: var(--transition);
-      position: relative;
-      min-height: 300px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .upload-box:hover {
-      border-color: var(--light);
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .upload-box.dragover {
-      background: rgba(251, 219, 147, 0.15);
-      border-color: var(--light);
-    }
-
-    .upload-icon {
-      font-size: 48px;
-      margin-bottom: 16px;
-      opacity: 0.8;
-    }
-
-    .upload-text {
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 16px;
-      margin-bottom: 8px;
-    }
-
-    .upload-subtext {
-      color: rgba(255, 255, 255, 0.6);
-      font-size: 13px;
-    }
-
-    #fileInput {
-      display: none;
-    }
-
-    /* Detection Result */
-    .result-section {
-      background: rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: var(--radius);
-      padding: 32px;
-      animation: slideUp 0.8s ease-out 0.4s backwards;
-    }
-
-    .result-title {
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.7);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 16px;
-    }
-
-    .result-badge {
-      display: inline-block;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-weight: 600;
-      margin-bottom: 16px;
-      font-size: 14px;
-    }
-
-    .result-badge.tb {
-      background: rgba(255, 87, 87, 0.2);
-      color: #ff5757;
-      border: 1px solid rgba(255, 87, 87, 0.3);
-    }
-
-    .result-badge.normal {
-      background: rgba(76, 175, 80, 0.2);
-      color: #4caf50;
-      border: 1px solid rgba(76, 175, 80, 0.3);
-    }
-
-    .result-value {
-      font-size: 36px;
-      font-weight: 700;
-      color: var(--light);
-      margin-bottom: 12px;
-    }
-
-    .confidence {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 14px;
-      margin-bottom: 16px;
-    }
-
-    .confidence-bar {
-      width: 100%;
-      height: 6px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 3px;
-      overflow: hidden;
-      margin-top: 8px;
-    }
-
-    .confidence-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--light));
-      transition: var(--transition);
-    }
-
-    .model-info {
-      color: rgba(255, 255, 255, 0.6);
-      font-size: 12px;
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    /* Buttons */
-    .btn {
-      background: linear-gradient(135deg, var(--accent), var(--muted));
-      color: white;
-      padding: 14px 32px;
-      border-radius: 12px;
-      border: none;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 14px;
-      transition: var(--transition);
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .btn:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 10px 30px rgba(190, 91, 80, 0.4);
-    }
-
-    .btn:active {
-      transform: translateY(-1px);
-    }
-
-    /* Image Preview */
-    .image-preview {
-      margin-top: 24px;
-      border-radius: 12px;
-      overflow: hidden;
-      background: rgba(0, 0, 0, 0.2);
-    }
-
-    .image-preview img {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-
-    /* Grad-CAM Analysis */
-    .gradcam-section {
-      margin-top: 48px;
-      padding-top: 48px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .gradcam-title {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--light);
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .gradcam-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 24px;
-    }
-
-    .gradcam-item {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: var(--radius);
-      overflow: hidden;
-      transition: var(--transition);
-    }
-
-    .gradcam-item:hover {
-      border-color: rgba(255, 255, 255, 0.2);
-      background: rgba(255, 255, 255, 0.06);
-    }
-
-    .gradcam-image {
-      width: 100%;
-      height: auto;
-      display: block;
-      background: rgba(0, 0, 0, 0.3);
-    }
-
-    .gradcam-label {
-      padding: 12px;
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 13px;
-      text-align: center;
-      background: rgba(0, 0, 0, 0.2);
-    }
-
-    /* Footer */
-    footer {
-      text-align: center;
-      margin-top: 60px;
-      padding-top: 32px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      color: rgba(255, 255, 255, 0.6);
-      font-size: 13px;
-    }
-
-    @media (max-width: 768px) {
-      h1 {
-        font-size: 28px;
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>TB Detection</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      :root {
+        --deep: #641b2e;
+        --muted: #8a2d3b;
+        --accent: #be5b50;
+        --light: #fbdb93;
+        --dark-bg: #1a0f14;
+        --radius: 16px;
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        font-family: "Poppins", system-ui, -apple-system, sans-serif;
+        background: linear-gradient(
+          135deg,
+          var(--deep) 0%,
+          var(--muted) 50%,
+          var(--dark-bg) 100%
+        );
+        color: #fff;
+      }
+
+      /* Navigation Bar */
+      nav {
+        background: rgba(10, 5, 8, 0.5);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 16px 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      nav .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      nav ul {
+        list-style: none;
+        display: flex;
+        gap: 32px;
+        align-items: center;
+      }
+
+      nav a {
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: var(--transition);
+        position: relative;
+      }
+
+      nav a::after {
+        content: "";
+        position: absolute;
+        bottom: -4px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: var(--light);
+        transition: var(--transition);
+      }
+
+      nav a:hover::after,
+      nav a.active::after {
+        width: 100%;
+      }
+
+      nav a:hover,
+      nav a.active {
+        color: var(--light);
+      }
+
+      .lang-switch {
+        display: flex;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        padding: 8px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .lang-switch button {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        padding: 8px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: var(--transition);
+      }
+
+      .lang-switch button.active {
+        background: linear-gradient(135deg, var(--accent), var(--muted));
+        color: white;
+      }
+
+      /* Main Page Container */
       .page {
-        padding: 24px 16px;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 48px 24px;
+        min-height: calc(100vh - 80px);
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 48px;
+        animation: fadeIn 0.8s ease-in;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .logo {
+        display: inline-block;
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, var(--accent), var(--muted));
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        margin-bottom: 20px;
+      }
+
+      h1 {
+        font-size: 42px;
+        font-weight: 700;
+        color: var(--light);
+        margin-bottom: 12px;
+      }
+
+      p.lead {
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.6;
+      }
+
+      /* Main Layout */
+      .container-main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        margin-bottom: 32px;
+      }
+
+      @media (max-width: 1024px) {
+        .container-main {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .left {
+        animation: slideUp 0.8s ease-out 0.2s backwards;
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(40px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .instructions {
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius);
+        padding: 24px;
+        margin-bottom: 24px;
+      }
+
+      .instructions strong {
+        color: var(--light);
+        display: block;
+        margin-bottom: 12px;
+        font-size: 15px;
+      }
+
+      .instructions p {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      /* Alerts */
+      .alert {
+        padding: 16px 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        animation: slideDown 0.4s ease-out;
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .alert-error {
+        background: rgba(255, 87, 87, 0.15);
+        border: 1px solid rgba(255, 87, 87, 0.3);
+        color: #ff5757;
+      }
+
+      .alert-warning {
+        background: rgba(255, 193, 7, 0.15);
+        border: 1px solid rgba(255, 193, 7, 0.3);
+        color: #ffc107;
+      }
+
+      .alert-success {
+        background: rgba(76, 175, 80, 0.15);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+        color: #4caf50;
+      }
+
+      .alert-close {
+        background: none;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        font-size: 20px;
+        opacity: 0.7;
+        transition: var(--transition);
+      }
+
+      .alert-close:hover {
+        opacity: 1;
+      }
+
+      /* Upload Box */
+      .upload-box {
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(10px);
+        border: 2px dashed rgba(255, 255, 255, 0.3);
+        border-radius: var(--radius);
+        padding: 48px 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: var(--transition);
+        position: relative;
+        min-height: 300px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .upload-box:hover {
+        border-color: var(--light);
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .upload-box.dragover {
+        background: rgba(251, 219, 147, 0.15);
+        border-color: var(--light);
+      }
+
+      .upload-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.8;
+      }
+
+      .upload-text {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 16px;
+        margin-bottom: 8px;
+      }
+
+      .upload-subtext {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 13px;
+      }
+
+      #fileInput {
+        display: none;
+      }
+
+      /* Detection Result */
+      .result-section {
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius);
+        padding: 32px;
+        animation: slideUp 0.8s ease-out 0.4s backwards;
+      }
+
+      .result-title {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.7);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 16px;
+      }
+
+      .result-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        font-size: 14px;
+      }
+
+      .result-badge.tb {
+        background: rgba(255, 87, 87, 0.2);
+        color: #ff5757;
+        border: 1px solid rgba(255, 87, 87, 0.3);
+      }
+
+      .result-badge.normal {
+        background: rgba(76, 175, 80, 0.2);
+        color: #4caf50;
+        border: 1px solid rgba(76, 175, 80, 0.3);
       }
 
       .result-value {
-        font-size: 28px;
+        font-size: 36px;
+        font-weight: 700;
+        color: var(--light);
+        margin-bottom: 12px;
       }
-    }
-  </style>
-</head>
-<body>
-  <nav>
-    <div class="container">
-      <ul>
-        <li><a href="/" class="{{ 'active' if request.path == '/' else '' }}">{{ 'Detection' if lang == 'en' else 'Deteksi' }}</a></li>
-        <li><a href="/learn" class="{{ 'active' if request.path.startswith('/learn') else '' }}">{{ 'Learn about TB' if lang == 'en' else 'Pelajari TB' }}</a></li>
-        <li><a href="/dashboard" class="{{ 'active' if request.path.startswith('/dashboard') else '' }}">{{ 'Statistics' if lang == 'en' else 'Statistik' }}</a></li>
-      </ul>
-      <div class="lang-switch">
-        <button onclick="setLanguage('en')" class="{{ 'active' if lang == 'en' else '' }}">EN</button>
-        <button onclick="setLanguage('id')" class="{{ 'active' if lang == 'id' else '' }}">ID</button>
+
+      .confidence {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 14px;
+        margin-bottom: 16px;
+      }
+
+      .confidence-bar {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 8px;
+      }
+
+      .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--light));
+        transition: var(--transition);
+      }
+
+      .model-info {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 12px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      /* Buttons */
+      .btn {
+        background: linear-gradient(135deg, var(--accent), var(--muted));
+        color: white;
+        padding: 14px 32px;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(190, 91, 80, 0.4);
+      }
+
+      .btn:active {
+        transform: translateY(-1px);
+      }
+
+      /* Image Preview */
+      .image-preview {
+        margin-top: 24px;
+        border-radius: 12px;
+        overflow: hidden;
+        background: rgba(0, 0, 0, 0.2);
+      }
+
+      .image-preview img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      /* Grad-CAM Analysis */
+      .gradcam-section {
+        margin-top: 48px;
+        padding-top: 48px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .gradcam-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--light);
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .gradcam-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 24px;
+      }
+
+      .gradcam-item {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius);
+        overflow: hidden;
+        transition: var(--transition);
+      }
+
+      .gradcam-item:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .gradcam-image {
+        width: 100%;
+        height: auto;
+        display: block;
+        background: rgba(0, 0, 0, 0.3);
+      }
+
+      .gradcam-label {
+        padding: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 13px;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.2);
+      }
+
+      /* Footer */
+      footer {
+        text-align: center;
+        margin-top: 60px;
+        padding-top: 32px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 13px;
+      }
+
+      @media (max-width: 768px) {
+        h1 {
+          font-size: 28px;
+        }
+
+        .page {
+          padding: 24px 16px;
+        }
+
+        .result-value {
+          font-size: 28px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="container">
+        <ul>
+          <li>
+            <a href="/" class="{{ 'active' if request.path == '/' else '' }}"
+              >{{ 'Detection' if lang == 'en' else 'Deteksi' }}</a
+            >
+          </li>
+          <li>
+            <a
+              href="/learn"
+              class="{{ 'active' if request.path.startswith('/learn') else '' }}"
+              >{{ 'Learn about TB' if lang == 'en' else 'Pelajari TB' }}</a
+            >
+          </li>
+          <li>
+            <a
+              href="/chatbot"
+              class="{{ 'active' if request.path.startswith('/chatbot') else '' }}"
+              >{{ 'Chatbot' if lang == 'en' else 'Chatbot' }}</a
+            >
+          </li>
+          <li>
+            <a
+              href="/dashboard"
+              class="{{ 'active' if request.path.startswith('/dashboard') else '' }}"
+              >{{ 'Statistics' if lang == 'en' else 'Statistik' }}</a
+            >
+          </li>
+        </ul>
+        <div class="lang-switch">
+          <button
+            onclick="setLanguage('en')"
+            class="{{ 'active' if lang == 'en' else '' }}"
+          >
+            EN
+          </button>
+          <button
+            onclick="setLanguage('id')"
+            class="{{ 'active' if lang == 'id' else '' }}"
+          >
+            ID
+          </button>
+        </div>
       </div>
-    </div>
-  </nav>
+    </nav>
 
-  <div class="page">
-    <header>
-      <div class="logo">🫁</div>
-      <h1>{{ 'Tuberculosis Detection' if lang == 'en' else 'Deteksi Tuberkulosis' }}</h1>
-      <p class="lead">{{ 'Upload a chest X-ray image to detect signs of tuberculosis — powered by a trained CNN model.' if lang == 'en' else 'Unggah gambar X-ray dada untuk mendeteksi tanda-tanda tuberkulosis — didukung oleh model CNN terlatih.' }}</p>
-    </header>
+    <div class="page">
+      <header>
+        <div class="logo">🫁</div>
+        <h1>
+          {{ 'Tuberculosis Detection' if lang == 'en' else 'Deteksi
+          Tuberkulosis' }}
+        </h1>
+        <p class="lead">
+          {{ 'Upload a chest X-ray image to detect signs of tuberculosis —
+          powered by a trained CNN model.' if lang == 'en' else 'Unggah gambar
+          X-ray dada untuk mendeteksi tanda-tanda tuberkulosis — didukung oleh
+          model CNN terlatih.' }}
+        </p>
+      </header>
 
-    <!-- Alerts -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }}">
-            <span>{{ message }}</span>
-            <button class="alert-close" onclick="this.parentElement.style.display='none';">&times;</button>
+      <!-- Alerts -->
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">
+        <span>{{ message }}</span>
+        <button
+          class="alert-close"
+          onclick="this.parentElement.style.display='none';"
+        >
+          &times;
+        </button>
+      </div>
+      {% endfor %} {% endif %} {% endwith %}
+
+      <div class="container-main">
+        <!-- Left: Upload -->
+        <div class="left">
+          <div class="instructions">
+            <strong
+              >💡 {{ 'How to use' if lang == 'en' else 'Cara menggunakan'
+              }}</strong
+            >
+            <p>
+              {{ 'Choose a clear chest X-ray image (preferably 224×224 or
+              larger). The model expects grayscale radiographs — the app will
+              convert color images automatically.' if lang == 'en' else 'Pilih
+              gambar X-ray dada yang jelas (sebaiknya 224×224 atau lebih besar).
+              Model mengharapkan radiograf skala abu-abu — aplikasi akan
+              mengonversi gambar berwarna secara otomatis.' }}
+            </p>
           </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
 
-    <div class="container-main">
-      <!-- Left: Upload -->
-      <div class="left">
-        <div class="instructions">
-          <strong>💡 {{ 'How to use' if lang == 'en' else 'Cara menggunakan' }}</strong>
-          <p>{{ 'Choose a clear chest X-ray image (preferably 224×224 or larger). The model expects grayscale radiographs — the app will convert color images automatically.' if lang == 'en' else 'Pilih gambar X-ray dada yang jelas (sebaiknya 224×224 atau lebih besar). Model mengharapkan radiograf skala abu-abu — aplikasi akan mengonversi gambar berwarna secara otomatis.' }}</p>
+          <form id="uploadForm" enctype="multipart/form-data" method="POST">
+            <div class="upload-box" id="uploadBox">
+              <div class="upload-icon">📁</div>
+              <div class="upload-text">
+                {{ 'Click or drag to upload' if lang == 'en' else 'Klik atau
+                seret untuk mengunggah' }}
+              </div>
+              <div class="upload-subtext">
+                {{ 'JPG, PNG (max 10MB)' if lang == 'en' else 'JPG, PNG (maks
+                10MB)' }}
+              </div>
+              <input
+                type="file"
+                id="fileInput"
+                name="file"
+                accept="image/*"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              class="btn"
+              style="width: 100%; margin-top: 24px; justify-content: center"
+            >
+              <i class="fas fa-search"></i>
+              {{ 'Detect' if lang == 'en' else 'Deteksi' }}
+            </button>
+          </form>
         </div>
 
-        <form id="uploadForm" enctype="multipart/form-data" method="POST">
-          <div class="upload-box" id="uploadBox">
-            <div class="upload-icon">📁</div>
-            <div class="upload-text">{{ 'Click or drag to upload' if lang == 'en' else 'Klik atau seret untuk mengunggah' }}</div>
-            <div class="upload-subtext">{{ 'JPG, PNG (max 10MB)' if lang == 'en' else 'JPG, PNG (maks 10MB)' }}</div>
-            <input type="file" id="fileInput" name="file" accept="image/*" required>
+        <!-- Right: Result -->
+        <div class="result-section">
+          <div class="result-title">
+            {{ 'Detection Result' if lang == 'en' else 'Hasil Deteksi' }}
           </div>
 
-          <button type="submit" class="btn" style="width: 100%; margin-top: 24px; justify-content: center;">
-            <i class="fas fa-search"></i>
-            {{ 'Detect' if lang == 'en' else 'Deteksi' }}
-          </button>
-        </form>
-      </div>
-
-      <!-- Right: Result -->
-      <div class="result-section">
-        <div class="result-title">{{ 'Detection Result' if lang == 'en' else 'Hasil Deteksi' }}</div>
-        
-        {% if result %}
-          <div class="result-badge {{ 'tb' if result == 'Tuberculosis' else 'normal' }}">
+          {% if result %}
+          <div
+            class="result-badge {{ 'tb' if result == 'Tuberculosis' else 'normal' }}"
+          >
             {{ '⚠️ ' if result == 'Tuberculosis' else '✓ ' }}{{ result }}
           </div>
-          
+
           <div class="result-value">{{ confidence_pct|round(2) }}%</div>
-          
+
           <div class="confidence">
             <i class="fas fa-chart-line"></i>
             {{ 'Confidence Score' if lang == 'en' else 'Skor Kepercayaan' }}
           </div>
           <div class="confidence-bar">
-            <div class="confidence-fill" style="width: {{ confidence_pct }}%"></div>
+            <div
+              class="confidence-fill"
+              style="width: {{ confidence_pct }}%"
+            ></div>
           </div>
 
           {% if image %}
-            <div class="image-preview">
-              <img src="{{ image }}" alt="Uploaded X-ray">
-            </div>
+          <div class="image-preview">
+            <img src="{{ image }}" alt="Uploaded X-ray" />
+          </div>
           {% endif %}
 
           <div class="model-info">
-            <strong>📊 {{ 'Model Information' if lang == 'en' else 'Informasi Model' }}</strong><br>
-            Model: TBCdetect.h5<br>
+            <strong
+              >📊 {{ 'Model Information' if lang == 'en' else 'Informasi Model'
+              }}</strong
+            ><br />
+            Model: TBCdetect.h5<br />
             {{ 'Input' if lang == 'en' else 'Masukan' }}: 224×224 (grayscale)
           </div>
-        {% else %}
-          <div style="color: rgba(255, 255, 255, 0.6); text-align: center; padding: 40px 20px;">
-            <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 12px; display: block; opacity: 0.5;"></i>
-            {{ 'No prediction yet — upload an image and press Detect.' if lang == 'en' else 'Belum ada prediksi — unggah gambar dan tekan Deteksi.' }}
+          {% else %}
+          <div
+            style="
+              color: rgba(255, 255, 255, 0.6);
+              text-align: center;
+              padding: 40px 20px;
+            "
+          >
+            <i
+              class="fas fa-inbox"
+              style="
+                font-size: 32px;
+                margin-bottom: 12px;
+                display: block;
+                opacity: 0.5;
+              "
+            ></i>
+            {{ 'No prediction yet — upload an image and press Detect.' if lang
+            == 'en' else 'Belum ada prediksi — unggah gambar dan tekan Deteksi.'
+            }}
           </div>
-        {% endif %}
+          {% endif %}
+        </div>
       </div>
-    </div>
 
-    <!-- Grad-CAM Analysis (below detection result) -->
-    {% if gradcam_image or image %}
+      <!-- Grad-CAM Analysis (below detection result) -->
+      {% if gradcam_image or image %}
       <div class="gradcam-section">
         <div class="gradcam-title">
           <i class="fas fa-brain"></i>
-          {{ 'AI Interpretability Analysis' if lang == 'en' else 'Analisis Interpretabilitas AI' }}
+          {{ 'AI Interpretability Analysis' if lang == 'en' else 'Analisis
+          Interpretabilitas AI' }}
         </div>
-        
-        <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 24px; font-size: 14px;">
-          {{ 'Grad-CAM visualization shows which regions of the X-ray the model focused on to make its prediction.' if lang == 'en' else 'Visualisasi Grad-CAM menunjukkan area X-ray mana yang difokuskan model untuk membuat prediksinya.' }}
+
+        <p
+          style="
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 24px;
+            font-size: 14px;
+          "
+        >
+          {{ 'Grad-CAM visualization shows which regions of the X-ray the model
+          focused on to make its prediction.' if lang == 'en' else 'Visualisasi
+          Grad-CAM menunjukkan area X-ray mana yang difokuskan model untuk
+          membuat prediksinya.' }}
         </p>
 
         <div class="gradcam-grid">
           {% if image %}
-            <div class="gradcam-item">
-              <img src="{{ image }}" alt="Original X-ray" class="gradcam-image">
-              <div class="gradcam-label">{{ 'Original X-ray' if lang == 'en' else 'X-ray Asli' }}</div>
+          <div class="gradcam-item">
+            <img src="{{ image }}" alt="Original X-ray" class="gradcam-image" />
+            <div class="gradcam-label">
+              {{ 'Original X-ray' if lang == 'en' else 'X-ray Asli' }}
             </div>
-          {% endif %}
-          
-          {% if gradcam_image %}
-            <div class="gradcam-item">
-              <img src="{{ gradcam_image }}" alt="Grad-CAM Heatmap" class="gradcam-image">
-              <div class="gradcam-label">{{ 'AI Focus Area (Grad-CAM)' if lang == 'en' else 'Area Fokus AI (Grad-CAM)' }}</div>
+          </div>
+          {% endif %} {% if gradcam_image %}
+          <div class="gradcam-item">
+            <img
+              src="{{ gradcam_image }}"
+              alt="Grad-CAM Heatmap"
+              class="gradcam-image"
+            />
+            <div class="gradcam-label">
+              {{ 'AI Focus Area (Grad-CAM)' if lang == 'en' else 'Area Fokus AI
+              (Grad-CAM)' }}
             </div>
+          </div>
           {% endif %}
         </div>
 
         <!-- AI Diagnosis Analysis -->
-        <div style="margin-top: 32px; padding: 24px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px;">
-          <div style="font-size: 16px; font-weight: 700; color: var(--light); margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+        <div
+          style="
+            margin-top: 32px;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+          "
+        >
+          <div
+            style="
+              font-size: 16px;
+              font-weight: 700;
+              color: var(--light);
+              margin-bottom: 16px;
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            "
+          >
             <i class="fas fa-stethoscope"></i>
-            {{ 'AI Diagnosis Summary' if lang == 'en' else 'Ringkasan Diagnosis AI' }}
+            {{ 'AI Diagnosis Summary' if lang == 'en' else 'Ringkasan Diagnosis
+            AI' }}
           </div>
 
           {% if result == 'Tuberculosis' %}
-            <!-- TB Diagnosis -->
-            <div style="background: rgba(255, 87, 87, 0.1); border-left: 4px solid #ff5757; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-              <div style="color: #ff5757; font-weight: 700; margin-bottom: 8px;">
-                ⚠️ {{ 'Positive Tuberculosis Detection' if lang == 'en' else 'Deteksi Tuberkulosis Positif' }}
-              </div>
-              <div style="color: rgba(255, 255, 255, 0.8); font-size: 14px; line-height: 1.6;">
-                <p style="margin-bottom: 8px;">
-                  {{ 'The AI model detected tuberculosis indicators with' if lang == 'en' else 'Model AI mendeteksi indikator tuberkulosis dengan' }} <strong>{{ confidence_pct|round(2) }}%</strong> {{ 'confidence.' if lang == 'en' else 'kepercayaan.' }}
-                </p>
-                <p style="margin-bottom: 8px;">
-                  <strong>{{ 'Key Findings:' if lang == 'en' else 'Temuan Utama:' }}</strong><br>
-                  • {{ 'Abnormal opacities detected in lung fields' if lang == 'en' else 'Opasitas abnormal terdeteksi di bidang paru-paru' }}<br>
-                  • {{ 'Pattern consistent with TB presentation' if lang == 'en' else 'Pola konsisten dengan presentasi TB' }}<br>
-                  • {{ 'Recommended for immediate medical consultation' if lang == 'en' else 'Direkomendasikan untuk konsultasi medis segera' }}
-                </p>
-              </div>
+          <!-- TB Diagnosis -->
+          <div
+            style="
+              background: rgba(255, 87, 87, 0.1);
+              border-left: 4px solid #ff5757;
+              padding: 16px;
+              border-radius: 8px;
+              margin-bottom: 16px;
+            "
+          >
+            <div style="color: #ff5757; font-weight: 700; margin-bottom: 8px">
+              ⚠️ {{ 'Positive Tuberculosis Detection' if lang == 'en' else
+              'Deteksi Tuberkulosis Positif' }}
             </div>
+            <div
+              style="
+                color: rgba(255, 255, 255, 0.8);
+                font-size: 14px;
+                line-height: 1.6;
+              "
+            >
+              <p style="margin-bottom: 8px">
+                {{ 'The AI model detected tuberculosis indicators with' if lang
+                == 'en' else 'Model AI mendeteksi indikator tuberkulosis dengan'
+                }} <strong>{{ confidence_pct|round(2) }}%</strong> {{
+                'confidence.' if lang == 'en' else 'kepercayaan.' }}
+              </p>
+              <p style="margin-bottom: 8px">
+                <strong
+                  >{{ 'Key Findings:' if lang == 'en' else 'Temuan Utama:'
+                  }}</strong
+                ><br />
+                • {{ 'Abnormal opacities detected in lung fields' if lang ==
+                'en' else 'Opasitas abnormal terdeteksi di bidang paru-paru'
+                }}<br />
+                • {{ 'Pattern consistent with TB presentation' if lang == 'en'
+                else 'Pola konsisten dengan presentasi TB' }}<br />
+                • {{ 'Recommended for immediate medical consultation' if lang ==
+                'en' else 'Direkomendasikan untuk konsultasi medis segera' }}
+              </p>
+            </div>
+          </div>
           {% else %}
-            <!-- Normal Diagnosis -->
-            <div style="background: rgba(76, 175, 80, 0.1); border-left: 4px solid #4caf50; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-              <div style="color: #4caf50; font-weight: 700; margin-bottom: 8px;">
-                ✓ {{ 'Normal Chest X-ray' if lang == 'en' else 'X-ray Dada Normal' }}
-              </div>
-              <div style="color: rgba(255, 255, 255, 0.8); font-size: 14px; line-height: 1.6;">
-                <p style="margin-bottom: 8px;">
-                  {{ 'The AI model indicates no tuberculosis detected with' if lang == 'en' else 'Model AI menunjukkan tidak ada tuberkulosis terdeteksi dengan' }} <strong>{{ confidence_pct|round(2) }}%</strong> {{ 'confidence.' if lang == 'en' else 'kepercayaan.' }}
-                </p>
-                <p style="margin-bottom: 8px;">
-                  <strong>{{ 'Key Findings:' if lang == 'en' else 'Temuan Utama:' }}</strong><br>
-                  • {{ 'Clear lung fields with normal appearance' if lang == 'en' else 'Bidang paru-paru jernih dengan penampilan normal' }}<br>
-                  • {{ 'No significant abnormalities detected' if lang == 'en' else 'Tidak ada kelainan signifikan terdeteksi' }}<br>
-                  • {{ 'Consistent with healthy chest imaging' if lang == 'en' else 'Konsisten dengan pencitraan dada yang sehat' }}
-                </p>
-              </div>
+          <!-- Normal Diagnosis -->
+          <div
+            style="
+              background: rgba(76, 175, 80, 0.1);
+              border-left: 4px solid #4caf50;
+              padding: 16px;
+              border-radius: 8px;
+              margin-bottom: 16px;
+            "
+          >
+            <div style="color: #4caf50; font-weight: 700; margin-bottom: 8px">
+              ✓ {{ 'Normal Chest X-ray' if lang == 'en' else 'X-ray Dada Normal'
+              }}
             </div>
+            <div
+              style="
+                color: rgba(255, 255, 255, 0.8);
+                font-size: 14px;
+                line-height: 1.6;
+              "
+            >
+              <p style="margin-bottom: 8px">
+                {{ 'The AI model indicates no tuberculosis detected with' if
+                lang == 'en' else 'Model AI menunjukkan tidak ada tuberkulosis
+                terdeteksi dengan' }}
+                <strong>{{ confidence_pct|round(2) }}%</strong> {{ 'confidence.'
+                if lang == 'en' else 'kepercayaan.' }}
+              </p>
+              <p style="margin-bottom: 8px">
+                <strong
+                  >{{ 'Key Findings:' if lang == 'en' else 'Temuan Utama:'
+                  }}</strong
+                ><br />
+                • {{ 'Clear lung fields with normal appearance' if lang == 'en'
+                else 'Bidang paru-paru jernih dengan penampilan normal' }}<br />
+                • {{ 'No significant abnormalities detected' if lang == 'en'
+                else 'Tidak ada kelainan signifikan terdeteksi' }}<br />
+                • {{ 'Consistent with healthy chest imaging' if lang == 'en'
+                else 'Konsisten dengan pencitraan dada yang sehat' }}
+              </p>
+            </div>
+          </div>
           {% endif %}
 
           <!-- Confidence Level Interpretation -->
-          <div style="background: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-            <div style="color: #ffc107; font-weight: 700; margin-bottom: 8px;">
-              📊 {{ 'Confidence Level Analysis' if lang == 'en' else 'Analisis Tingkat Kepercayaan' }}
+          <div
+            style="
+              background: rgba(255, 193, 7, 0.1);
+              border-left: 4px solid #ffc107;
+              padding: 16px;
+              border-radius: 8px;
+              margin-bottom: 16px;
+            "
+          >
+            <div style="color: #ffc107; font-weight: 700; margin-bottom: 8px">
+              📊 {{ 'Confidence Level Analysis' if lang == 'en' else 'Analisis
+              Tingkat Kepercayaan' }}
             </div>
-            <div style="color: rgba(255, 255, 255, 0.8); font-size: 14px; line-height: 1.6;">
+            <div
+              style="
+                color: rgba(255, 255, 255, 0.8);
+                font-size: 14px;
+                line-height: 1.6;
+              "
+            >
               {% if confidence_pct >= 90 %}
-                <p>{{ 'Very High Confidence - The model is highly certain about this prediction.' if lang == 'en' else 'Kepercayaan Sangat Tinggi - Model sangat yakin tentang prediksi ini.' }}</p>
+              <p>
+                {{ 'Very High Confidence - The model is highly certain about
+                this prediction.' if lang == 'en' else 'Kepercayaan Sangat
+                Tinggi - Model sangat yakin tentang prediksi ini.' }}
+              </p>
               {% elif confidence_pct >= 75 %}
-                <p>{{ 'High Confidence - The model is confident in this prediction.' if lang == 'en' else 'Kepercayaan Tinggi - Model percaya diri dalam prediksi ini.' }}</p>
+              <p>
+                {{ 'High Confidence - The model is confident in this
+                prediction.' if lang == 'en' else 'Kepercayaan Tinggi - Model
+                percaya diri dalam prediksi ini.' }}
+              </p>
               {% elif confidence_pct >= 60 %}
-                <p>{{ 'Moderate Confidence - The model shows reasonable confidence, but professional verification is recommended.' if lang == 'en' else 'Kepercayaan Sedang - Model menunjukkan kepercayaan yang wajar, tetapi verifikasi profesional disarankan.' }}</p>
+              <p>
+                {{ 'Moderate Confidence - The model shows reasonable confidence,
+                but professional verification is recommended.' if lang == 'en'
+                else 'Kepercayaan Sedang - Model menunjukkan kepercayaan yang
+                wajar, tetapi verifikasi profesional disarankan.' }}
+              </p>
               {% else %}
-                <p>{{ 'Low Confidence - Results are uncertain. Professional medical evaluation is strongly recommended.' if lang == 'en' else 'Kepercayaan Rendah - Hasil tidak pasti. Evaluasi medis profesional sangat disarankan.' }}</p>
+              <p>
+                {{ 'Low Confidence - Results are uncertain. Professional medical
+                evaluation is strongly recommended.' if lang == 'en' else
+                'Kepercayaan Rendah - Hasil tidak pasti. Evaluasi medis
+                profesional sangat disarankan.' }}
+              </p>
               {% endif %}
-              <div style="margin-top: 12px;">
-                <div style="height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden;">
-                  <div style="height: 100%; background: linear-gradient(90deg, {% if confidence_pct >= 90 %}#4caf50{% elif confidence_pct >= 75 %} #8bc34a{% elif confidence_pct >= 60 %}#ffc107{% else %}#ff5757{% endif %}, {% if confidence_pct >= 90 %}#66bb6a{% elif confidence_pct >= 75 %}#9ccc65{% elif confidence_pct >= 60 %}#ffb74d{% else %}#ef5350{% endif %}); width: {{ confidence_pct }}%;"></div>
+              <div style="margin-top: 12px">
+                <div
+                  style="
+                    height: 6px;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 3px;
+                    overflow: hidden;
+                  "
+                >
+                  <div
+                    style="height: 100%; background: linear-gradient(90deg, {% if confidence_pct >= 90 %}#4caf50{% elif confidence_pct >= 75 %} #8bc34a{% elif confidence_pct >= 60 %}#ffc107{% else %}#ff5757{% endif %}, {% if confidence_pct >= 90 %}#66bb6a{% elif confidence_pct >= 75 %}#9ccc65{% elif confidence_pct >= 60 %}#ffb74d{% else %}#ef5350{% endif %}); width: {{ confidence_pct }}%;"
+                  ></div>
                 </div>
-                <div style="margin-top: 8px; font-size: 12px; color: rgba(255, 255, 255, 0.6);">
+                <div
+                  style="
+                    margin-top: 8px;
+                    font-size: 12px;
+                    color: rgba(255, 255, 255, 0.6);
+                  "
+                >
                   {{ confidence_pct|round(2) }}% confidence score
                 </div>
               </div>
@@ -686,72 +947,115 @@
           </div>
 
           <!-- Important Disclaimer -->
-          <div style="background: rgba(156, 39, 176, 0.1); border-left: 4px solid #9c27f0; padding: 16px; border-radius: 8px;">
-            <div style="color: #9c27f0; font-weight: 700; margin-bottom: 8px;">
-              ⚠️ {{ 'Important Disclaimer' if lang == 'en' else 'Penafian Penting' }}
+          <div
+            style="
+              background: rgba(156, 39, 176, 0.1);
+              border-left: 4px solid #9c27f0;
+              padding: 16px;
+              border-radius: 8px;
+            "
+          >
+            <div style="color: #9c27f0; font-weight: 700; margin-bottom: 8px">
+              ⚠️ {{ 'Important Disclaimer' if lang == 'en' else 'Penafian
+              Penting' }}
             </div>
-            <div style="color: rgba(255, 255, 255, 0.8); font-size: 13px; line-height: 1.6;">
-              <p style="margin-bottom: 8px;">
-                {{ 'This AI analysis is for educational and screening purposes only. It is NOT a medical diagnosis. Always consult with qualified healthcare professionals (radiologists, doctors) for proper medical evaluation and diagnosis.' if lang == 'en' else 'Analisis AI ini hanya untuk tujuan pendidikan dan skrining. Ini BUKAN diagnosis medis. Selalu konsultasikan dengan profesional kesehatan yang memenuhi syarat (radiolog, dokter) untuk evaluasi dan diagnosis medis yang tepat.' }}
+            <div
+              style="
+                color: rgba(255, 255, 255, 0.8);
+                font-size: 13px;
+                line-height: 1.6;
+              "
+            >
+              <p style="margin-bottom: 8px">
+                {{ 'This AI analysis is for educational and screening purposes
+                only. It is NOT a medical diagnosis. Always consult with
+                qualified healthcare professionals (radiologists, doctors) for
+                proper medical evaluation and diagnosis.' if lang == 'en' else
+                'Analisis AI ini hanya untuk tujuan pendidikan dan skrining. Ini
+                BUKAN diagnosis medis. Selalu konsultasikan dengan profesional
+                kesehatan yang memenuhi syarat (radiolog, dokter) untuk evaluasi
+                dan diagnosis medis yang tepat.' }}
               </p>
               <p>
-                {{ 'For positive TB findings, seek immediate medical attention from a healthcare provider.' if lang == 'en' else 'Untuk temuan TB positif, segera cari perhatian medis dari penyedia layanan kesehatan.' }}
+                {{ 'For positive TB findings, seek immediate medical attention
+                from a healthcare provider.' if lang == 'en' else 'Untuk temuan
+                TB positif, segera cari perhatian medis dari penyedia layanan
+                kesehatan.' }}
               </p>
             </div>
           </div>
         </div>
       </div>
-    {% endif %}
+      {% endif %}
 
-    <footer>
-      <p>&copy; <span id="year"></span> TB Detection System. {{ 'For educational purposes.' if lang == 'en' else 'Untuk tujuan pendidikan.' }}</p>
-      <p style="margin-top: 12px; font-size: 12px;">
-        ⚠️ {{ 'This tool is for educational demonstration. Always consult with healthcare professionals for actual medical diagnosis.' if lang == 'en' else 'Alat ini untuk demonstrasi pendidikan. Selalu konsultasikan dengan profesional kesehatan untuk diagnosis medis yang sebenarnya.' }}
-      </p>
-    </footer>
-  </div>
+      <footer>
+        <p>
+          &copy; <span id="year"></span> TB Detection System. {{ 'For
+          educational purposes.' if lang == 'en' else 'Untuk tujuan pendidikan.'
+          }}
+        </p>
+        <p style="margin-top: 12px; font-size: 12px">
+          ⚠️ {{ 'This tool is for educational demonstration. Always consult with
+          healthcare professionals for actual medical diagnosis.' if lang ==
+          'en' else 'Alat ini untuk demonstrasi pendidikan. Selalu konsultasikan
+          dengan profesional kesehatan untuk diagnosis medis yang sebenarnya.'
+          }}
+        </p>
+      </footer>
+    </div>
 
-  <script>
-    document.getElementById('year').textContent = new Date().getFullYear();
+    <script>
+      document.getElementById("year").textContent = new Date().getFullYear();
 
-    const uploadBox = document.getElementById('uploadBox');
-    const fileInput = document.getElementById('fileInput');
+      const uploadBox = document.getElementById("uploadBox");
+      const fileInput = document.getElementById("fileInput");
+      const uploadForm = document.getElementById("uploadForm");
 
-    // Click to upload
-    uploadBox.addEventListener('click', () => fileInput.click());
+      // Click to upload
+      uploadBox.addEventListener("click", () => fileInput.click());
 
-    // Drag and drop
-    uploadBox.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadBox.classList.add('dragover');
-    });
+      // Handle file selection (both click and drag-drop)
+      fileInput.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) {
+          console.log("File selected:", e.target.files[0].name);
+          uploadForm.submit();
+        }
+      });
 
-    uploadBox.addEventListener('dragleave', () => {
-      uploadBox.classList.remove('dragover');
-    });
+      // Drag and drop
+      uploadBox.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadBox.classList.add("dragover");
+      });
 
-    uploadBox.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadBox.classList.remove('dragover');
-      fileInput.files = e.dataTransfer.files;
-      document.getElementById('uploadForm').submit();
-    });
+      uploadBox.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadBox.classList.remove("dragover");
+      });
 
-    // Show filename when selected
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        uploadBox.style.opacity = '0.7';
+      uploadBox.addEventListener("drop", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadBox.classList.remove("dragover");
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          fileInput.files = files;
+          console.log("File dropped:", files[0].name);
+          uploadForm.submit();
+        }
+      });
+
+      function setLanguage(lang) {
+        fetch(`/set_language/${lang}`)
+          .then((response) => response.json())
+          .then((data) => {
+            location.reload();
+          })
+          .catch((err) => console.error("Language switch error:", err));
       }
-    });
-
-    function setLanguage(lang) {
-      fetch(`/set_language/${lang}`)
-        .then(response => response.json())
-        .then(data => {
-          location.reload();
-        })
-        .catch(err => console.error('Language switch error:', err));
-    }
-  </script>
-</body>
+    </script>
+  </body>
 </html>

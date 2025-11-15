@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="{{ lang or 'en' }}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>TB Detection Chatbot</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      :root {
+        --deep: #641b2e;
+        --muted: #8a2d3b;
+        --accent: #be5b50;
+        --light: #fbdb93;
+        --dark-bg: #1a0f14;
+        --radius: 16px;
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        font-family: "Poppins", system-ui, -apple-system, sans-serif;
+        background: linear-gradient(
+          135deg,
+          var(--deep) 0%,
+          var(--muted) 50%,
+          var(--dark-bg) 100%
+        );
+        color: #fff;
+        height: 100%;
+      }
+
+      /* Navigation Bar */
+      nav {
+        background: rgba(10, 5, 8, 0.5);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 16px 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      nav .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      nav ul {
+        list-style: none;
+        display: flex;
+        gap: 32px;
+        align-items: center;
+      }
+
+      nav a {
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: var(--transition);
+        position: relative;
+      }
+
+      nav a::after {
+        content: "";
+        position: absolute;
+        bottom: -4px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: var(--light);
+        transition: var(--transition);
+      }
+
+      nav a:hover::after,
+      nav a.active::after {
+        width: 100%;
+      }
+
+      nav a:hover,
+      nav a.active {
+        color: var(--light);
+      }
+
+      .lang-switch {
+        display: flex;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        padding: 8px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .lang-switch button {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        padding: 8px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: var(--transition);
+      }
+
+      .lang-switch button.active {
+        background: linear-gradient(135deg, var(--accent), var(--muted));
+        color: white;
+      }
+
+      /* Main Container */
+      .page {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 80px);
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 24px;
+      }
+
+      h1 {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--light);
+        margin-bottom: 8px;
+      }
+
+      .subtitle {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 14px;
+      }
+
+      /* Chat Container */
+      .chat-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+
+      .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .chat-messages::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .chat-messages::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .chat-messages::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+      }
+
+      .chat-messages::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      /* Message Styles */
+      .message {
+        display: flex;
+        gap: 12px;
+        animation: slideUp 0.3s ease-out;
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .message.user {
+        justify-content: flex-end;
+      }
+
+      .message-content {
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        word-wrap: break-word;
+        line-height: 1.4;
+        font-size: 14px;
+      }
+
+      .message.user .message-content {
+        background: linear-gradient(135deg, var(--accent), var(--muted));
+        color: white;
+        border-bottom-right-radius: 4px;
+      }
+
+      .message.bot .message-content {
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.9);
+        border-bottom-left-radius: 4px;
+      }
+
+      .message.bot .message-content strong {
+        color: var(--light);
+      }
+
+      /* Loading indicator */
+      .message.loading .message-content {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+      }
+
+      .loading-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.6);
+        animation: bounce 1.4s infinite;
+      }
+
+      .loading-dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .loading-dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes bounce {
+        0%,
+        80%,
+        100% {
+          opacity: 0.4;
+          transform: translateY(0);
+        }
+        40% {
+          opacity: 1;
+          transform: translateY(-8px);
+        }
+      }
+
+      /* Chat Input */
+      .chat-input-container {
+        padding: 16px 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        gap: 12px;
+        background: rgba(0, 0, 0, 0.2);
+      }
+
+      .chat-input-wrapper {
+        flex: 1;
+        display: flex;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 8px;
+        align-items: center;
+      }
+
+      #chatInput {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: white;
+        padding: 8px;
+        font-family: inherit;
+        font-size: 14px;
+        outline: none;
+      }
+
+      #chatInput::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      .send-btn {
+        background: linear-gradient(135deg, var(--accent), var(--muted));
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 12px;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .send-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(190, 91, 80, 0.4);
+      }
+
+      .send-btn:active {
+        transform: translateY(0);
+      }
+
+      .send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Clear Button */
+      .clear-btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 10px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 12px;
+        transition: var(--transition);
+      }
+
+      .clear-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+
+      /* Welcome Message */
+      .welcome-message {
+        text-align: center;
+        padding: 24px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .welcome-message h2 {
+        color: var(--light);
+        font-size: 20px;
+        margin-bottom: 12px;
+      }
+
+      .welcome-message p {
+        font-size: 13px;
+        line-height: 1.6;
+        margin-bottom: 16px;
+      }
+
+      .suggested-questions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .suggested-btn {
+        background: rgba(251, 219, 147, 0.15);
+        color: var(--light);
+        border: 1px solid rgba(251, 219, 147, 0.3);
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+        text-align: center;
+        transition: var(--transition);
+        line-height: 1.4;
+      }
+
+      .suggested-btn:hover {
+        background: rgba(251, 219, 147, 0.25);
+        border-color: rgba(251, 219, 147, 0.5);
+      }
+
+      /* Alert */
+      .alert {
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        border-left: 4px solid;
+        background: rgba(255, 193, 7, 0.1);
+        border-color: #ffc107;
+        color: #ffc107;
+        margin-bottom: 16px;
+      }
+
+      @media (max-width: 768px) {
+        .page {
+          padding: 16px;
+        }
+
+        h1 {
+          font-size: 22px;
+        }
+
+        .message-content {
+          max-width: 85%;
+        }
+
+        .suggested-questions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="container">
+        <ul>
+          <li>
+            <a href="/">{{ 'Detection' if lang == 'en' else 'Deteksi' }}</a>
+          </li>
+          <li>
+            <a href="/learn"
+              >{{ 'Learn about TB' if lang == 'en' else 'Pelajari TB' }}</a
+            >
+          </li>
+          <li>
+            <a href="/chatbot" class="active"
+              >{{ 'Chatbot' if lang == 'en' else 'Chatbot' }}</a
+            >
+          </li>
+          <li>
+            <a href="/dashboard"
+              >{{ 'Statistics' if lang == 'en' else 'Statistik' }}</a
+            >
+          </li>
+        </ul>
+        <div class="lang-switch">
+          <button
+            onclick="setLanguage('en')"
+            class="{{ 'active' if lang == 'en' else '' }}"
+          >
+            EN
+          </button>
+          <button
+            onclick="setLanguage('id')"
+            class="{{ 'active' if lang == 'id' else '' }}"
+          >
+            ID
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page">
+      <header>
+        <h1>
+          🤖 {{ 'TB Detection Chatbot' if lang == 'en' else 'Chatbot Deteksi TB'
+          }}
+        </h1>
+        <p class="subtitle">
+          {{ 'Ask any questions about tuberculosis detection and health' if lang
+          == 'en' else 'Tanyakan pertanyaan tentang deteksi tuberkulosis dan
+          kesehatan' }}
+        </p>
+      </header>
+
+      <div class="chat-container">
+        <div class="chat-messages" id="chatMessages">
+          <div class="message bot">
+            <div class="message-content">
+              <div class="welcome-message">
+                <h2>
+                  {{ 'Welcome to TB Detection Chatbot!' if lang == 'en' else
+                  'Selamat Datang di Chatbot Deteksi TB!' }}
+                </h2>
+                <p>
+                  {{ 'I am here to answer your questions about tuberculosis, TB
+                  detection, symptoms, prevention, and health-related topics.
+                  Feel free to ask me anything!' if lang == 'en' else 'Saya di
+                  sini untuk menjawab pertanyaan Anda tentang tuberkulosis,
+                  deteksi TB, gejala, pencegahan, dan topik kesehatan. Silakan
+                  tanya saja!' }}
+                </p>
+                <div class="suggested-questions">
+                  <button
+                    class="suggested-btn"
+                    onclick="sendMessage('What is tuberculosis?')"
+                  >
+                    {{ 'What is tuberculosis?' if lang == 'en' else 'Apa itu
+                    tuberkulosis?' }}
+                  </button>
+                  <button
+                    class="suggested-btn"
+                    onclick="sendMessage('What are the symptoms of TB?')"
+                  >
+                    {{ 'What are the symptoms of TB?' if lang == 'en' else 'Apa
+                    saja gejala TB?' }}
+                  </button>
+                  <button
+                    class="suggested-btn"
+                    onclick="sendMessage('How is TB transmitted?')"
+                  >
+                    {{ 'How is TB transmitted?' if lang == 'en' else 'Bagaimana
+                    TB ditularkan?' }}
+                  </button>
+                  <button
+                    class="suggested-btn"
+                    onclick="sendMessage('How can I prevent TB?')"
+                  >
+                    {{ 'How can I prevent TB?' if lang == 'en' else 'Bagaimana
+                    cara mencegah TB?' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert" id="infoAlert" style="display: none; margin: 0">
+          ℹ️ {{ 'This chatbot can only answer questions about tuberculosis and
+          related health topics.' if lang == 'en' else 'Chatbot ini hanya dapat
+          menjawab pertanyaan tentang tuberkulosis dan topik kesehatan terkait.'
+          }}
+        </div>
+
+        <div class="chat-input-container">
+          <div class="chat-input-wrapper">
+            <input
+              type="text"
+              id="chatInput"
+              placeholder="{{ 'Ask about TB...' if lang == 'en' else 'Tanya tentang TB...' }}"
+              autocomplete="off"
+            />
+          </div>
+          <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+            <i class="fas fa-paper-plane"></i>
+            {{ 'Send' if lang == 'en' else 'Kirim' }}
+          </button>
+          <button class="clear-btn" onclick="clearChat()">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const lang = "{{ lang }}";
+      const resultContext = "{{ result_context or '' }}";
+      const confidenceContext = "{{ confidence_context or '' }}";
+
+      // Query DOM elements and guard if missing to avoid runtime errors
+      const chatMessages = document.getElementById("chatMessages");
+      const chatInput = document.getElementById("chatInput");
+      const sendBtn = document.getElementById("sendBtn");
+      const infoAlert = document.getElementById("infoAlert");
+
+      if (!chatMessages) {
+        console.error(
+          "chatMessages element not found - chat UI cannot initialize"
+        );
+      }
+      if (!chatInput) {
+        console.error("chatInput element not found - input disabled");
+      }
+      if (!sendBtn) {
+        console.error("sendBtn element not found - send button disabled");
+      }
+
+      // Allow sending message with Enter key (guarded)
+      if (chatInput) {
+        chatInput.addEventListener("keypress", (e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+          }
+        });
+      }
+
+      function sendMessage(message = null) {
+        const userMessage = message || chatInput.value.trim();
+
+        if (!userMessage) {
+          chatInput.focus();
+          return;
+        }
+
+        // Add user message to chat
+        if (chatMessages) addMessage(userMessage, "user");
+        chatInput.value = "";
+        sendBtn.disabled = true;
+
+        // Show info alert the first time a user sends a message
+        if (infoAlert && infoAlert.style.display === "none") {
+          infoAlert.style.display = "block";
+        }
+
+        // Show loading indicator
+        const loadingId = chatMessages
+          ? addMessage("", "bot loading")
+          : "loading-" + Date.now();
+
+        // Send to backend
+        (async () => {
+          try {
+            const resp = await fetch("/api/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                message: userMessage,
+                lang: lang,
+                result_context: resultContext,
+                confidence_context: confidenceContext,
+              }),
+            });
+
+            // Remove loading message
+            const loadingMsg = document.getElementById(loadingId);
+            if (loadingMsg) loadingMsg.remove();
+
+            if (!resp.ok) {
+              addMessage(
+                "{{ 'Network error. Please try again.' if lang == 'en' else 'Kesalahan jaringan. Silakan coba lagi.' }}",
+                "bot"
+              );
+            } else {
+              const data = await resp.json();
+              if (data.success) {
+                addMessage(data.response, "bot");
+              } else {
+                addMessage(
+                  data.error ||
+                    (lang === "en"
+                      ? "Sorry, I encountered an error. Please try again."
+                      : "Maaf, saya mengalami kesalahan. Silakan coba lagi."),
+                  "bot"
+                );
+              }
+            }
+          } catch (err) {
+            console.error("Chat error", err);
+            const loadingMsg = document.getElementById(loadingId);
+            if (loadingMsg) loadingMsg.remove();
+            if (chatMessages)
+              addMessage(
+                "{{ 'Network error. Please try again.' if lang == 'en' else 'Kesalahan jaringan. Silakan coba lagi.' }}",
+                "bot"
+              );
+          } finally {
+            if (sendBtn) sendBtn.disabled = false;
+            if (chatInput) chatInput.focus();
+          }
+        })();
+      }
+
+      function addMessage(text, sender) {
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `message ${sender === "user" ? "user" : "bot"}`;
+
+        if (sender === "bot loading") {
+          messageDiv.classList.add("loading");
+          messageDiv.innerHTML = `
+          <div class="message-content">
+            <div class="loading-dot"></div>
+            <div class="loading-dot"></div>
+            <div class="loading-dot"></div>
+          </div>
+        `;
+          messageDiv.id = "loading-" + Date.now();
+        } else {
+          const contentDiv = document.createElement("div");
+          contentDiv.className = "message-content";
+          contentDiv.innerHTML = text
+            .split("\n")
+            .map((line) => `<div>${line}</div>`)
+            .join("");
+          messageDiv.appendChild(contentDiv);
+        }
+
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        return messageDiv.id || "loading-" + Date.now();
+      }
+
+      function clearChat() {
+        chatMessages.innerHTML = `
+        <div class="message bot">
+          <div class="message-content">
+            <div class="welcome-message">
+              <h2>${
+                lang === "en"
+                  ? "Welcome to TB Detection Chatbot!"
+                  : "Selamat Datang di Chatbot Deteksi TB!"
+              }</h2>
+              <p>
+                ${
+                  lang === "en"
+                    ? "I am here to answer your questions about tuberculosis, TB detection, symptoms, prevention, and health-related topics. Feel free to ask me anything!"
+                    : "Saya di sini untuk menjawab pertanyaan Anda tentang tuberkulosis, deteksi TB, gejala, pencegahan, dan topik kesehatan. Silakan tanya saja!"
+                }
+              </p>
+              <div class="suggested-questions">
+                <button class="suggested-btn" onclick="sendMessage('What is tuberculosis?')">
+                  ${
+                    lang === "en"
+                      ? "What is tuberculosis?"
+                      : "Apa itu tuberkulosis?"
+                  }
+                </button>
+                <button class="suggested-btn" onclick="sendMessage('What are the symptoms of TB?')">
+                  ${
+                    lang === "en"
+                      ? "What are the symptoms of TB?"
+                      : "Apa saja gejala TB?"
+                  }
+                </button>
+                <button class="suggested-btn" onclick="sendMessage('How is TB transmitted?')">
+                  ${
+                    lang === "en"
+                      ? "How is TB transmitted?"
+                      : "Bagaimana TB ditularkan?"
+                  }
+                </button>
+                <button class="suggested-btn" onclick="sendMessage('How can I prevent TB?')">
+                  ${
+                    lang === "en"
+                      ? "How can I prevent TB?"
+                      : "Bagaimana cara mencegah TB?"
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+        infoAlert.style.display = "none";
+      }
+
+      function setLanguage(lang) {
+        fetch(`/set_language/${lang}`)
+          .then((response) => response.json())
+          .then((data) => {
+            location.reload();
+          })
+          .catch((err) => console.error("Language switch error:", err));
+      }
+    </script>
+  </body>
+</html>

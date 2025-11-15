@@ -13,6 +13,7 @@ from datetime import datetime
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import requests
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here_change_me_in_production'
@@ -22,6 +23,10 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 MAX_FILE_SIZE = 10 * 1024 * 1024
 STATS_FILE = 'data/stats.json'
+
+# Gemini API Configuration
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'AIzaSyD_ZChlw6WxeQIgkf__AmSnGE1pJOPY_CY')
+GEMINI_API_URL = os.environ.get('GEMINI_API_URL', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent')
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -46,6 +51,22 @@ try:
             model_layer_name = layer.name
             print(f"✓ Using layer for Grad-CAM: {model_layer_name}")
             break
+    # If no layer name with 'conv' found, try to pick the last layer with 4D output (likely a conv layer)
+    if model_layer_name is None:
+        for layer in reversed(model.layers):
+            try:
+                shape = getattr(layer, 'output_shape', None)
+                if shape is None:
+                    continue
+                # output_shape can be (None, H, W, C) or similar
+                if isinstance(shape, (list, tuple)) and len(shape) >= 3:
+                    # prefer layers with 4 dimensions (batch, H, W, C)
+                    if len(shape) == 4:
+                        model_layer_name = layer.name
+                        print(f"✓ Fallback using layer for Grad-CAM: {model_layer_name}")
+                        break
+            except Exception:
+                continue
 except Exception as e:
     print(f"✗ Error loading model: {e}")
     model = None
@@ -387,6 +408,200 @@ def reset_stats():
     }
     save_stats(default_stats)
     return jsonify({'message': 'Statistics reset successfully', 'stats': default_stats})
+
+@app.route('/chatbot')
+def chatbot():
+    result_context = request.args.get('result', '')
+    confidence_context = request.args.get('confidence', '')
+    return render_template(
+        'chatbot.html',
+        lang=session.get('lang', 'en'),
+        result_context=result_context,
+        confidence_context=confidence_context
+    )
+
+def is_tbc_related(message):
+    """Check if message is TB/health related"""
+    tbc_keywords = [
+        'tuberculosis', 'tb', 'tbc', 'chest', 'x-ray', 'xray', 'radiograph', 'lung',
+        'symptom', 'cough', 'fever', 'health', 'medical', 'disease', 'infection',
+        'diagnosis', 'treatment', 'prevention', 'vaccine', 'bcg', 'latent',
+        'active', 'respiratory', 'breathing', 'shortness', 'breath', 'pneumonia',
+        'bronchus', 'pleural', 'miliary', 'cavity', 'tubercle', 'granuloma',
+        'isoniazid', 'rifampicin', 'pyrazinamide', 'ethambutol', 'medicine',
+        'drug resistant', 'mdr', 'xdr', 'test', 'mantoux', 'igra', 'blood',
+        'sputum', 'biopsy', 'ct scan', 'consultant', 'radiologist', 'doctor',
+        'hospital', 'clinic', 'patient', 'contact', 'exposure', 'transmission',
+        'contagious', 'airborne', 'droplet', 'skin', 'lymph', 'gland',
+        'tuberkulosis', 'gejala', 'demam', 'batuk', 'kesehatan', 'medis',
+        'penyakit', 'infeksi', 'diagnosis', 'pengobatan', 'pencegahan', 'vaksin',
+        'paru-paru', 'paru', 'dada', 'sinar-x', 'foto', 'radiograf', 'pernafasan',
+        'napas', 'sesak', 'pneumonia', 'obat', 'resisten', 'dokter', 'rumah sakit',
+        'klinik', 'pasien', 'kontak', 'paparan', 'penularan', 'menular',
+        'udara', 'droplet', 'kulit', 'limfa', 'kelenjar'
+    ]
+    
+    message_lower = message.lower()
+    # Quick reject if message contains clearly forbidden topics
+    forbidden = [
+        'politik', 'politics', 'agama', 'religion', 'kriminal', 'crime', 'korupsi', 'murder',
+        'kill', 'teroris', 'terror', 'sex', 'seks', 'porn', 'politik', 'politikus'
+    ]
+    if any(f in message_lower for f in forbidden):
+        return False
+
+    # Accept if any TB/health-related keyword exists
+    return any(keyword in message_lower for keyword in tbc_keywords)
+
+
+def local_bot_response(message, lang='id'):
+    """Simple keyword-based fallback responder using CHATBOT_RESPONSES."""
+    msg = message.lower()
+    # prefer Indonesian if available
+    responses = CHATBOT_RESPONSES.get(lang, CHATBOT_RESPONSES.get('id'))
+    # try exact phrase keys
+    for key, resp in responses.items():
+        if key in ['default', 'hello', 'hi', 'help']:
+            continue
+        if key in msg:
+            return resp
+
+    # look for common words
+    if any(w in msg for w in ['gejala', 'symptom', 'batuk', 'demam']):
+        return responses.get('symptoms of tb') or responses.get('symptoms of tb')
+    if any(w in msg for w in ['apa itu', 'what is', 'tuberkulosis', 'tuberculosis', 'tb']):
+        return responses.get('what is tb')
+
+    # fallback generic help
+    return responses.get('default')
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    try:
+        data = request.get_json()
+        user_message = data.get('message', '').strip()
+        lang = data.get('lang', 'en')
+        result_context = data.get('result_context', '')
+        confidence_context = data.get('confidence_context', '')
+        
+        if not user_message:
+            return jsonify({'success': False, 'error': 'Message is required'})
+        
+        # Validate that message is TB-related; otherwise return strict redirect message in Indonesian
+        redirect_msg = "Maaf, saya hanya dapat menjawab pertanyaan seputar Tuberkulosis (TBC). Silakan ajukan pertanyaan yang berkaitan dengan TBC."
+        if not is_tbc_related(user_message):
+            return jsonify({'success': True, 'response': redirect_msg})
+        
+        # Build context for AI
+        context = ""
+        if result_context:
+            context = f"\n\nUser's recent TB scan result: {result_context}"
+        if confidence_context:
+            context += f"\nConfidence: {confidence_context}%"
+        
+        # System prompt: enforce Indonesian formal style, education-only, TB-only
+        system_prompt = (
+            "Anda adalah asisten medis AI yang berspesialisasi hanya pada Tuberkulosis (TBC). "
+            "Tugas Anda:\n"
+            "1) Menjawab semua pertanyaan yang berkaitan dengan TBC secara jelas, akurat, dan mudah dipahami.\n"
+            "2) Memberikan edukasi dasar: gejala, penyebab, penularan, pencegahan, diagnosis, dan pengobatan terkait TBC.\n"
+            "3) Selalu mengingatkan bahwa Anda bukan dokter dan informasi ini tidak menggantikan konsultasi medis.\n"
+            "Aturan: Jika pertanyaan berada di luar topik TBC, jangan jawab; balas dengan: 'Maaf, saya hanya dapat menjawab pertanyaan seputar Tuberkulosis (TBC). Silakan ajukan pertanyaan yang berkaitan dengan TBC.'\n"
+            "Jangan menjawab topik sensitif seperti politik, agama, atau kriminal. Jangan memberikan diagnosis pasti; hanya berikan edukasi dan anjuran berkonsultasi ke profesional kesehatan.\n"
+            "Gaya: Bahasa Indonesia formal dan ramah. Jawaban ringkas, jelas, dan profesional. Gunakan poin bila perlu dan jelaskan istilah medis yang rumit secara singkat."
+        )
+        
+        # Prepare request to Gemini API
+        headers = {
+            'Content-Type': 'application/json',
+        }
+        
+        payload = {
+            'contents': [
+                {
+                    'parts': [
+                        {'text': system_prompt + context + f"\n\nPengguna: {user_message}"}
+                    ]
+                }
+            ],
+            'generationConfig': {
+                'temperature': 0.2,
+                'topP': 0.95,
+                'topK': 40,
+                'maxOutputTokens': 400,
+            }
+        }
+        
+        # Call Gemini API (attempt and provide diagnostics if it fails)
+        try:
+            response = requests.post(
+                f'{GEMINI_API_URL}?key={GEMINI_API_KEY}',
+                json=payload,
+                headers=headers,
+                timeout=20
+            )
+        except Exception as e:
+            print(f"Chat request error: {e}")
+            return jsonify({'success': False, 'error': 'Gagal menghubungi layanan AI.'})
+
+        print(f"Gemini API status: {response.status_code}")
+        # Log part of the response to help debugging (server-side only)
+        try:
+            snippet = response.text[:1000]
+            print("Gemini response snippet:", snippet)
+        except Exception:
+            pass
+
+        bot_response = None
+        if response.status_code == 200:
+            try:
+                result = response.json()
+                # Try several known response shapes
+                if isinstance(result, dict):
+                    if 'candidates' in result and len(result['candidates']) > 0:
+                        candidate = result['candidates'][0]
+                        # candidate may contain content->parts
+                        if isinstance(candidate, dict):
+                            content = candidate.get('content') or {}
+                            parts = content.get('parts') if isinstance(content, dict) else None
+                            if parts and isinstance(parts, list) and len(parts) > 0:
+                                bot_response = parts[0].get('text')
+                    # Some API versions return 'output' at top-level
+                    if bot_response is None and 'output' in result and isinstance(result['output'], list):
+                        try:
+                            bot_response = result['output'][0]['content'][0].get('text')
+                        except Exception:
+                            bot_response = None
+                
+                if bot_response:
+                    return jsonify({'success': True, 'response': bot_response})
+            except Exception as e:
+                print(f"Error parsing Gemini response: {e}")
+
+        # If the Gemini call failed or parsing failed, try a local fallback responder
+        try:
+            print("Attempting local fallback responder for chat")
+            local_resp = local_bot_response(user_message, lang=('id' if lang == 'id' else 'en'))
+            if local_resp:
+                return jsonify({'success': True, 'response': local_resp, 'fallback': 'local'})
+        except Exception as e:
+            print(f"Local fallback error: {e}")
+
+        # If no local response, return an error so the frontend shows an informative message
+        fallback_msg = (
+            "I'm having trouble connecting to the AI service. Please try again later."
+            if lang == 'en'
+            else "Saya sedang mengalami masalah menghubungkan ke layanan AI. Silakan coba lagi nanti."
+        )
+        return jsonify({'success': False, 'error': fallback_msg})
+        
+    except requests.exceptions.Timeout:
+        error_msg = "Request timeout. Please try again." if lang == 'en' else "Permintaan habis waktu. Silakan coba lagi."
+        return jsonify({'success': False, 'error': error_msg})
+    except Exception as e:
+        print(f"Chat API error: {e}")
+        error_msg = f"Error: {str(e)}"
+        return jsonify({'success': False, 'error': error_msg})
 
 @app.errorhandler(413)
 def request_entity_too_large(error):

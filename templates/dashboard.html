@@ -1,402 +1,501 @@
 <!DOCTYPE html>
 <html lang="{{ lang or 'en' }}">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dashboard - TB Detection Analytics</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root{
-      --deep:#641B2E;
-      --muted:#8A2D3B;
-      --accent:#BE5B50;
-      --light:#FBDB93;
-      --card-bg: rgba(255,255,255,0.04);
-      --glass: rgba(255,255,255,0.06);
-      --radius:12px;
-    }
-
-    html,body{
-      min-height:100%;
-      margin:0;
-      font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
-      background: linear-gradient(180deg,var(--deep) 0%, var(--muted) 55%, #3a1a20 100%);
-      color:#fff;
-      -webkit-font-smoothing:antialiased;
-    }
-
-    nav {
-      background: rgba(0,0,0,0.25);
-      backdrop-filter: blur(10px);
-      padding: 12px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    nav .container {
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 0 28px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    nav ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      gap: 20px;
-      align-items: center;
-    }
-
-    nav a {
-      color: rgba(255,255,255,0.85);
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 500;
-      transition: color 0.2s;
-    }
-
-    nav a:hover, nav a.active {
-      color: var(--light);
-    }
-
-    .lang-switch {
-      display: flex;
-      gap: 8px;
-      background: rgba(255,255,255,0.06);
-      padding: 6px;
-      border-radius: 8px;
-    }
-
-    .lang-switch button {
-      background: transparent;
-      border: none;
-      color: rgba(255,255,255,0.7);
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-      transition: all 0.2s;
-    }
-
-    .lang-switch button.active {
-      background: var(--accent);
-      color: white;
-    }
-
-    .page{
-      max-width:980px;
-      margin:40px auto;
-      padding:28px 28px 60px;
-    }
-
-    .header {
-      margin-bottom: 32px;
-    }
-
-    .header h1 {
-      font-size: 28px;
-      margin: 0 0 8px 0;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .header p {
-      color: rgba(255,255,255,0.75);
-      margin: 0;
-      font-size: 14px;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 20px;
-      margin-bottom: 28px;
-    }
-
-    .stat-card {
-      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-      border-radius: var(--radius);
-      padding: 24px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-      transition: transform 0.3s, box-shadow 0.3s;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .stat-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 15px 40px rgba(0,0,0,0.45);
-    }
-
-    .stat-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, var(--accent), var(--light));
-    }
-
-    .stat-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, var(--accent), var(--muted));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 16px;
-    }
-
-    .stat-label {
-      font-size: 13px;
-      color: rgba(255,255,255,0.7);
-      margin: 0 0 8px 0;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .stat-value {
-      font-size: 32px;
-      font-weight: 700;
-      margin: 0;
-      background: linear-gradient(135deg, var(--light), white);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .stat-sub {
-      font-size: 13px;
-      color: rgba(255,255,255,0.6);
-      margin: 4px 0 0 0;
-    }
-
-    .chart-section {
-      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-      border-radius: var(--radius);
-      padding: 28px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-      margin-bottom: 28px;
-    }
-
-    .chart-section h2 {
-      font-size: 20px;
-      margin: 0 0 20px 0;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .chart-container {
-      background: rgba(0,0,0,0.25);
-      border-radius: 10px;
-      padding: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 300px;
-    }
-
-    .chart-container img {
-      max-width: 100%;
-      height: auto;
-      border-radius: 8px;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: rgba(255,255,255,0.5);
-    }
-
-    .empty-state svg {
-      width: 64px;
-      height: 64px;
-      margin-bottom: 16px;
-      opacity: 0.4;
-    }
-
-    .empty-state h3 {
-      font-size: 18px;
-      margin: 0 0 8px 0;
-      color: rgba(255,255,255,0.7);
-    }
-
-    .empty-state p {
-      font-size: 14px;
-      margin: 0 0 20px 0;
-    }
-
-    .btn {
-      background: linear-gradient(180deg,var(--accent),var(--muted));
-      border: none;
-      color: white;
-      padding:12px 20px;
-      border-radius:10px;
-      cursor:pointer;
-      font-weight:600;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-      text-decoration: none;
-      display: inline-block;
-      transition: transform 0.2s;
-      font-size: 14px;
-    }
-
-    .btn:hover {
-      transform: translateY(-2px);
-    }
-
-    .info-box {
-      background: linear-gradient(135deg, rgba(251,219,147,0.15), rgba(190,91,80,0.1));
-      border-left: 4px solid var(--light);
-      border-radius: 8px;
-      padding: 16px 20px;
-      margin-bottom: 20px;
-    }
-
-    .info-box p {
-      margin: 0;
-      color: rgba(255,255,255,0.85);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .stat-card {
-      animation: fadeIn 0.5s ease-out forwards;
-    }
-
-    .stat-card:nth-child(1) { animation-delay: 0.1s; }
-    .stat-card:nth-child(2) { animation-delay: 0.2s; }
-    .stat-card:nth-child(3) { animation-delay: 0.3s; }
-    .stat-card:nth-child(4) { animation-delay: 0.4s; }
-
-    @media (max-width: 768px) {
-      .stats-grid {
-        grid-template-columns: 1fr;
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Dashboard - TB Detection Analytics</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --deep: #641b2e;
+        --muted: #8a2d3b;
+        --accent: #be5b50;
+        --light: #fbdb93;
+        --card-bg: rgba(255, 255, 255, 0.04);
+        --glass: rgba(255, 255, 255, 0.06);
+        --radius: 12px;
       }
-    }
-  </style>
-</head>
-<body>
-  <nav>
-    <div class="container">
-      <ul>
-        <li><a href="/">Detection</a></li>
-        <li><a href="/learn">Learn about TB</a></li>
-        <li><a href="/dashboard" class="active">Dashboard</a></li>
-      </ul>
-      <div class="lang-switch">
-        <button onclick="setLanguage('en')" class="{{ 'active' if lang == 'en' else '' }}">EN</button>
-        <button onclick="setLanguage('id')" class="{{ 'active' if lang == 'id' else '' }}">ID</button>
-      </div>
-    </div>
-  </nav>
 
-  <div class="page">
-    <div class="header">
-      <h1>
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="20" x2="18" y2="10"/>
-          <line x1="12" y1="20" x2="12" y2="4"/>
-          <line x1="6" y1="20" x2="6" y2="14"/>
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+        font-family: Inter, system-ui, Segoe UI, Roboto, "Helvetica Neue", Arial;
+        background: linear-gradient(
+          180deg,
+          var(--deep) 0%,
+          var(--muted) 55%,
+          #3a1a20 100%
+        );
+        color: #fff;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      nav {
+        background: rgba(0, 0, 0, 0.25);
+        backdrop-filter: blur(10px);
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      nav .container {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 0 28px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      nav ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+      }
+
+      nav a {
+        color: rgba(255, 255, 255, 0.85);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: color 0.2s;
+      }
+
+      nav a:hover,
+      nav a.active {
+        color: var(--light);
+      }
+
+      .lang-switch {
+        display: flex;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.06);
+        padding: 6px;
+        border-radius: 8px;
+      }
+
+      .lang-switch button {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.2s;
+      }
+
+      .lang-switch button.active {
+        background: var(--accent);
+        color: white;
+      }
+
+      .page {
+        max-width: 980px;
+        margin: 40px auto;
+        padding: 28px 28px 60px;
+      }
+
+      .header {
+        margin-bottom: 32px;
+      }
+
+      .header h1 {
+        font-size: 28px;
+        margin: 0 0 8px 0;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .header p {
+        color: rgba(255, 255, 255, 0.75);
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        margin-bottom: 28px;
+      }
+
+      .stat-card {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.05),
+          rgba(255, 255, 255, 0.02)
+        );
+        border-radius: var(--radius);
+        padding: 24px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        transition: transform 0.3s, box-shadow 0.3s;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.45);
+      }
+
+      .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--accent), var(--light));
+      }
+
+      .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--accent), var(--muted));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+      }
+
+      .stat-label {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.7);
+        margin: 0 0 8px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .stat-value {
+        font-size: 32px;
+        font-weight: 700;
+        margin: 0;
+        background: linear-gradient(135deg, var(--light), white);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .stat-sub {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.6);
+        margin: 4px 0 0 0;
+      }
+
+      .chart-section {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.05),
+          rgba(255, 255, 255, 0.02)
+        );
+        border-radius: var(--radius);
+        padding: 28px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        margin-bottom: 28px;
+      }
+
+      .chart-section h2 {
+        font-size: 20px;
+        margin: 0 0 20px 0;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .chart-container {
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: 10px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 300px;
+      }
+
+      .chart-container img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      .empty-state svg {
+        width: 64px;
+        height: 64px;
+        margin-bottom: 16px;
+        opacity: 0.4;
+      }
+
+      .empty-state h3 {
+        font-size: 18px;
+        margin: 0 0 8px 0;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .empty-state p {
+        font-size: 14px;
+        margin: 0 0 20px 0;
+      }
+
+      .btn {
+        background: linear-gradient(180deg, var(--accent), var(--muted));
+        border: none;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+        text-decoration: none;
+        display: inline-block;
+        transition: transform 0.2s;
+        font-size: 14px;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .info-box {
+        background: linear-gradient(
+          135deg,
+          rgba(251, 219, 147, 0.15),
+          rgba(190, 91, 80, 0.1)
+        );
+        border-left: 4px solid var(--light);
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+      }
+
+      .info-box p {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .stat-card {
+        animation: fadeIn 0.5s ease-out forwards;
+      }
+
+      .stat-card:nth-child(1) {
+        animation-delay: 0.1s;
+      }
+      .stat-card:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .stat-card:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+      .stat-card:nth-child(4) {
+        animation-delay: 0.4s;
+      }
+
+      @media (max-width: 768px) {
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="container">
+        <ul>
+          <li><a href="/">Detection</a></li>
+          <li><a href="/learn">Learn about TB</a></li>
+          <li>
+            <a
+              href="/chatbot"
+              class="{{ 'active' if request.path.startswith('/chatbot') else '' }}"
+              >Chatbot</a
+            >
+          </li>
+          <li><a href="/dashboard" class="active">Dashboard</a></li>
+        </ul>
+        <div class="lang-switch">
+          <button
+            onclick="setLanguage('en')"
+            class="{{ 'active' if lang == 'en' else '' }}"
+          >
+            EN
+          </button>
+          <button
+            onclick="setLanguage('id')"
+            class="{{ 'active' if lang == 'id' else '' }}"
+          >
+            ID
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page">
+      <div class="header">
+        <h1>
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+          {{ 'Analytics Dashboard' if lang == 'en' else 'Dasbor Analitik' }}
+        </h1>
+        <p>
+          {{ 'Overview of TB detection predictions and model performance' if
+          lang == 'en' else 'Ikhtisar prediksi deteksi TB dan kinerja model' }}
+        </p>
+      </div>
+
+      <div class="info-box">
+        <p>
+          <strong>ℹ️ {{ 'Note:' if lang == 'en' else 'Catatan:' }}</strong>
+          {{ 'Statistics are based on predictions made during your current
+          session. Data resets when the server restarts.' if lang == 'en' else
+          'Statistik berdasarkan prediksi yang dibuat selama sesi Anda saat ini.
+          Data direset saat server dimulai ulang.' }}
+        </p>
+      </div>
+
+      {% if stats.total > 0 %}
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">🔍</div>
+          <div class="stat-value">{{ stats.total_scans }}</div>
+          <div class="stat-label">
+            {{ 'Total Scans' if lang == 'en' else 'Total Pemindaian' }}
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-value">{{ stats.accuracy_rate }}%</div>
+          <div class="stat-label">
+            {{ 'Accuracy Rate' if lang == 'en' else 'Tingkat Akurasi' }}
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚠️</div>
+          <div class="stat-value">{{ stats.tb_cases }}</div>
+          <div class="stat-label">
+            {{ 'TB Cases Detected' if lang == 'en' else 'Kasus TB Terdeteksi' }}
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✓</div>
+          <div class="stat-value">{{ stats.normal_cases }}</div>
+          <div class="stat-label">
+            {{ 'Normal Cases' if lang == 'en' else 'Kasus Normal' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-section">
+        <h2>
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+            <path d="M22 12A10 10 0 0 0 12 2v10z" />
+          </svg>
+          {{ 'Prediction Distribution' if lang == 'en' else 'Distribusi
+          Prediksi' }}
+        </h2>
+        <div class="chart-container">
+          {% if stats.chart_url %}
+          <img
+            src="{{ stats.chart_url }}"
+            alt="Prediction distribution chart"
+          />
+          {% else %}
+          <p style="color: rgba(255, 255, 255, 0.5)">
+            {{ 'Chart unavailable' if lang == 'en' else 'Grafik tidak tersedia'
+            }}
+          </p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 32px">
+        <a href="/" class="btn">
+          {{ 'Back to Detection' if lang == 'en' else 'Kembali ke Deteksi' }}
+        </a>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="12 1 23 8 23 16 12 23 1 16 1 8 12 1"></polyline>
+          <polyline points="12 12 23 7 23 17 12 22 1 17 1 7 12 12"></polyline>
+          <line x1="12" y1="22" x2="12" y2="12"></line>
         </svg>
-        {{ 'Analytics Dashboard' if lang == 'en' else 'Dasbor Analitik' }}
-      </h1>
-      <p>{{ 'Overview of TB detection predictions and model performance' if lang == 'en' else 'Ikhtisar prediksi deteksi TB dan kinerja model' }}</p>
+        <h3>{{ 'No Data Yet' if lang == 'en' else 'Belum Ada Data' }}</h3>
+        <p>
+          {{ 'Start making predictions to see analytics and statistics here.' if
+          lang == 'en' else 'Mulai membuat prediksi untuk melihat analitik dan
+          statistik di sini.' }}
+        </p>
+        <a href="/" class="btn"
+          >{{ 'Go to Detection' if lang == 'en' else 'Buka Deteksi' }}</a
+        >
+      </div>
+      {% endif %}
     </div>
 
-    <div class="info-box">
-      <p>
-        <strong>ℹ️ {{ 'Note:' if lang == 'en' else 'Catatan:' }}</strong>
-        {{ 'Statistics are based on predictions made during your current session. Data resets when the server restarts.' if lang == 'en' else 'Statistik berdasarkan prediksi yang dibuat selama sesi Anda saat ini. Data direset saat server dimulai ulang.' }}
-      </p>
-    </div>
-
-    {% if stats.total > 0 %}
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon">🔍</div>
-        <div class="stat-value">{{ stats.total_scans }}</div>
-        <div class="stat-label">{{ 'Total Scans' if lang == 'en' else 'Total Pemindaian' }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">✅</div>
-        <div class="stat-value">{{ stats.accuracy_rate }}%</div>
-        <div class="stat-label">{{ 'Accuracy Rate' if lang == 'en' else 'Tingkat Akurasi' }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">⚠️</div>
-        <div class="stat-value">{{ stats.tb_cases }}</div>
-        <div class="stat-label">{{ 'TB Cases Detected' if lang == 'en' else 'Kasus TB Terdeteksi' }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">✓</div>
-        <div class="stat-value">{{ stats.normal_cases }}</div>
-        <div class="stat-label">{{ 'Normal Cases' if lang == 'en' else 'Kasus Normal' }}</div>
-      </div>
-    </div>
-
-    <div class="chart-section">
-      <h2>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>
-          <path d="M22 12A10 10 0 0 0 12 2v10z"/>
-        </svg>
-        {{ 'Prediction Distribution' if lang == 'en' else 'Distribusi Prediksi' }}
-      </h2>
-      <div class="chart-container">
-        {% if stats.chart_url %}
-          <img src="{{ stats.chart_url }}" alt="Prediction distribution chart">
-        {% else %}
-          <p style="color: rgba(255,255,255,0.5);">{{ 'Chart unavailable' if lang == 'en' else 'Grafik tidak tersedia' }}</p>
-        {% endif %}
-      </div>
-    </div>
-
-    <div style="text-align: center; margin-top: 32px;">
-      <a href="/" class="btn">
-        {{ 'Back to Detection' if lang == 'en' else 'Kembali ke Deteksi' }}
-      </a>
-    </div>
-    {% else %}
-    <div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="12 1 23 8 23 16 12 23 1 16 1 8 12 1"></polyline>
-        <polyline points="12 12 23 7 23 17 12 22 1 17 1 7 12 12"></polyline>
-        <line x1="12" y1="22" x2="12" y2="12"></line>
-      </svg>
-      <h3>{{ 'No Data Yet' if lang == 'en' else 'Belum Ada Data' }}</h3>
-      <p>{{ 'Start making predictions to see analytics and statistics here.' if lang == 'en' else 'Mulai membuat prediksi untuk melihat analitik dan statistik di sini.' }}</p>
-      <a href="/" class="btn">{{ 'Go to Detection' if lang == 'en' else 'Buka Deteksi' }}</a>
-    </div>
-    {% endif %}
-  </div>
-
-  <script>
-    function setLanguage(lang) {
-      fetch(`/set_language/${lang}`)
-        .then(response => response.json())
-        .then(data => {
-          location.reload();
-        })
-        .catch(err => console.error('Language switch error:', err));
-    }
-  </script>
-</body>
+    <script>
+      function setLanguage(lang) {
+        fetch(`/set_language/${lang}`)
+          .then((response) => response.json())
+          .then((data) => {
+            location.reload();
+          })
+          .catch((err) => console.error("Language switch error:", err));
+      }
+    </script>
+  </body>
 </html>
