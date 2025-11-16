@@ -420,60 +420,114 @@ def chatbot():
         confidence_context=confidence_context
     )
 
+import re
+from unicodedata import normalize
+
+# Intent pattern recognition — lebih fleksibel dari keyword matching
+INTENT_PATTERNS = {
+    'symptoms': r'\b(gejala|symptom|tanda|sign|ciri|keluhan|sakit|apa saja tanda|apa aja tanda|batuk|demam|nyeri)\b',
+    'transmission': r'\b(menular|transmit|penyebaran|spread|penularan|bagaimana cara terinfeksi|caranya tertular|melalui|droplet|kontak|cara tertular)\b',
+    'prevention': r'\b(cegah|prevent|vaksin|vaccine|bcg|pencegahan|cara menghindari|hindari|perlindungan|proteksi|bagaimana caranya tidak terinfeksi)\b',
+    'treatment': r'\b(obat|treat|pengobatan|penyembuhan|terapi|bagaimana cara menyembuhkan|cara mengobati|obatan|berapa lama|durasi)\b',
+    'diagnosis': r'\b(diagnosis|tes|test|xray|x-ray|rontgen|mantoux|igra|darah|lab|pemeriksaan|bagaimana didiagnosis|cara mendeteksi|cek|screening)\b',
+    'accuracy': r'\b(akurat|accuracy|confidence|kepercayaan|valid|reliable|seberapa akurat|seakurat apa|bisa dipercaya|valid|tepat)\b',
+    'latent_active': r'\b(laten|latent|aktif|active|perbedaan|beda|apa bedanya|bedanya apa|yang aktif|yang laten)\b',
+    'what_is_tb': r'\b(apa itu|what is|definisi|definition|pengertian|arti|maksud)\s+(tb|tbc|tuberkulosis|tuberculosis)\b',
+    'upload_app': r'\b(upload|unggah|file|gambar|image|bagaimana|how|cara|langkah|step|prosedur|proses)\b',
+    'gradcam': r'\b(gradcam|grad-cam|heatmap|visualisasi|visualization|fokus|focus|area mana|bagian mana|highlight)\b',
+    'risk': r'\b(risiko|risk|kemungkinan|likelihood|siapa yang berisiko|yang rentan|faktor risiko|peluang)\b',
+    'contact': r'\b(kontak|contact|tertular|terinfeksi|exposure|terpapar|aman|safe|seberapa lama|berapa lama|close contact)\b'
+}
+
+# Forbidden topics — strict reject
+FORBIDDEN_PATTERNS = r'\b(politik|politics|agama|religion|kriminal|crime|korupsi|murder|kill|teroris|terror|sex|seks|porn|judi|gambling|narkoba|drugs)\b'
+
+def normalize_text(text):
+    """Normalize text: lowercase, remove extra spaces, remove punctuation"""
+    text = text.lower().strip()
+    # Remove common Indonesian/English punctuation
+    text = re.sub(r'[?!,;:\'"\-()]+', ' ', text)
+    # Remove extra spaces
+    text = re.sub(r'\s+', ' ', text)
+    return text
+
+def detect_intent(message):
+    """Detect user intent using regex patterns. Return intent name or None."""
+    normalized = normalize_text(message)
+    
+    for intent, pattern in INTENT_PATTERNS.items():
+        if re.search(pattern, normalized, re.IGNORECASE):
+            return intent
+    
+    return None
+
 def is_tbc_related(message):
-    """Check if message is TB/health related"""
+    """
+    Check if message is TB/health related.
+    More lenient: accepts valid TB questions, rejects only forbidden topics.
+    """
+    normalized = normalize_text(message)
+    
+    # Hard reject: forbidden topics
+    if re.search(FORBIDDEN_PATTERNS, normalized, re.IGNORECASE):
+        return False
+    
+    # Accept if intent detected (TB question)
+    if detect_intent(message):
+        return True
+    
+    # Accept if contains any TB/health keywords
     tbc_keywords = [
         'tuberculosis', 'tb', 'tbc', 'chest', 'x-ray', 'xray', 'radiograph', 'lung',
         'symptom', 'cough', 'fever', 'health', 'medical', 'disease', 'infection',
         'diagnosis', 'treatment', 'prevention', 'vaccine', 'bcg', 'latent',
         'active', 'respiratory', 'breathing', 'shortness', 'breath', 'pneumonia',
-        'bronchus', 'pleural', 'miliary', 'cavity', 'tubercle', 'granuloma',
-        'isoniazid', 'rifampicin', 'pyrazinamide', 'ethambutol', 'medicine',
-        'drug resistant', 'mdr', 'xdr', 'test', 'mantoux', 'igra', 'blood',
-        'sputum', 'biopsy', 'ct scan', 'consultant', 'radiologist', 'doctor',
-        'hospital', 'clinic', 'patient', 'contact', 'exposure', 'transmission',
-        'contagious', 'airborne', 'droplet', 'skin', 'lymph', 'gland',
         'tuberkulosis', 'gejala', 'demam', 'batuk', 'kesehatan', 'medis',
         'penyakit', 'infeksi', 'diagnosis', 'pengobatan', 'pencegahan', 'vaksin',
         'paru-paru', 'paru', 'dada', 'sinar-x', 'foto', 'radiograf', 'pernafasan',
         'napas', 'sesak', 'pneumonia', 'obat', 'resisten', 'dokter', 'rumah sakit',
-        'klinik', 'pasien', 'kontak', 'paparan', 'penularan', 'menular',
-        'udara', 'droplet', 'kulit', 'limfa', 'kelenjar'
+        'klinik', 'pasien', 'kontak', 'paparan', 'penularan', 'menular', 'udara'
     ]
     
-    message_lower = message.lower()
-    # Quick reject if message contains clearly forbidden topics
-    forbidden = [
-        'politik', 'politics', 'agama', 'religion', 'kriminal', 'crime', 'korupsi', 'murder',
-        'kill', 'teroris', 'terror', 'sex', 'seks', 'porn', 'politik', 'politikus'
-    ]
-    if any(f in message_lower for f in forbidden):
-        return False
-
-    # Accept if any TB/health-related keyword exists
-    return any(keyword in message_lower for keyword in tbc_keywords)
+    return any(keyword in normalized for keyword in tbc_keywords)
 
 
 def local_bot_response(message, lang='id'):
-    """Simple keyword-based fallback responder using CHATBOT_RESPONSES."""
-    msg = message.lower()
-    # prefer Indonesian if available
+    """
+    Smart context-aware TB responder using intent detection.
+    - Detects user intent from regex patterns
+    - Answers the actual question, no repetition
+    - Flexible response selection
+    - Follows health assistant guidelines
+    """
+    intent = detect_intent(message)
     responses = CHATBOT_RESPONSES.get(lang, CHATBOT_RESPONSES.get('id'))
-    # try exact phrase keys
-    for key, resp in responses.items():
-        if key in ['default', 'hello', 'hi', 'help']:
-            continue
-        if key in msg:
-            return resp
-
-    # look for common words
-    if any(w in msg for w in ['gejala', 'symptom', 'batuk', 'demam']):
-        return responses.get('symptoms of tb') or responses.get('symptoms of tb')
-    if any(w in msg for w in ['apa itu', 'what is', 'tuberkulosis', 'tuberculosis', 'tb']):
-        return responses.get('what is tb')
-
-    # fallback generic help
-    return responses.get('default')
+    
+    # Intent-based routing with context-aware responses
+    intent_responses = {
+        'symptoms': responses.get('symptoms of tb'),
+        'transmission': "TB menular melalui droplet udara saat orang yang terinfeksi batuk atau bersin. Kontak singkat biasanya aman; risiko lebih tinggi pada kontak lama dengan orang yang aktif TB. Penggunaan masker dan ventilasi yang baik membantu mengurangi risiko penularan.",
+        'prevention': "Pencegahan TB meliputi: vaksinasi BCG (saat bayi), hindari kontak dekat dengan penderita TB aktif tanpa perlindungan, jaga nutrisi dan kesehatan imun, tidur cukup, dan periksakan diri jika ada gejala mencurigakan.",
+        'treatment': "TB aktif disembuhkan dengan kombinasi obat-obatan rutin selama 6 bulan. Kepatuhan minum obat sangat penting; jangan berhenti sendiri untuk menghindari kekebalan obat. Dokter akan menentukan jenis obat berdasarkan tes kepekaan bakteri.",
+        'diagnosis': "TB didiagnosis melalui: tes Mantoux (tes kulit), IGRA (tes darah), pemeriksaan sputum di bawah mikroskop, atau Rontgen dada untuk TB aktif. Screening awal dapat menggunakan X-ray dan alat AI seperti aplikasi ini.",
+        'accuracy': "Aplikasi ini hanya untuk screening awal; diagnosis pasti harus dilakukan oleh dokter dan radiolog berpengalaman. Hasil AI bukan pengganti konsultasi profesional kesehatan. Selalu konsultasikan dengan fasilitas kesehatan untuk diagnosis yang akurat.",
+        'latent_active': "TB laten: bakteri ada tapi tidak aktif—tidak menular, tanpa gejala. TB aktif: bakteri berkembang, menular, dan menimbulkan gejala. Tes darah/kulit deteksi laten; X-ray dan gejala klinis deteksi aktif. Hanya TB aktif yang terlihat di X-ray dada.",
+        'what_is_tb': responses.get('what is tb'),
+        'upload_app': "Klik area upload atau seret file gambar X-ray dada ke kotak. Format yang diterima: JPG atau PNG (maksimal 10MB). Sistem akan memproses gambar dan menampilkan hasil prediksi dengan visualisasi Grad-CAM.",
+        'gradcam': "Grad-CAM menunjukkan area X-ray mana yang paling mempengaruhi prediksi model AI. Warna merah = bobot prediksi tinggi, area yang dianggap model penting. Ini membantu memahami logika keputusan AI, bukan diagnosis definitif.",
+        'risk': "Risiko TB tinggi pada: orang dengan kontak lama dengan penderita aktif, pekerja kesehatan, orang dengan imun lemah (HIV/AIDS), penyakit paru kronis, atau malnutrisi. TB dapat menimpa siapa saja, namun deteksi dini dan pengobatan sangat efektif.",
+        'contact': "Kontak dengan penderita TB aktif berisiko tertular, terutama pada kontak lama (keluarga, satu rumah). Tetapi risiko dapat diminimalkan dengan: masker, ventilasi baik, isolasi penderita, dan pengobatan tepat waktu."
+    }
+    
+    # Return intent-based response if available
+    if intent and intent in intent_responses and intent_responses[intent]:
+        return intent_responses[intent]
+    
+    # Fallback: friendly help prompt
+    help_text = responses.get('help') or (
+        "Tanya saya tentang: gejala TB, cara penularan, pencegahan, pengobatan, cara pemeriksaan, akurasi aplikasi, atau cara menggunakan alat ini. Apa yang ingin kamu ketahui?"
+    )
+    return help_text
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
@@ -487,52 +541,72 @@ def chat():
         if not user_message:
             return jsonify({'success': False, 'error': 'Message is required'})
         
-        # Validate that message is TB-related; otherwise return strict redirect message in Indonesian
-        redirect_msg = "Maaf, saya hanya dapat menjawab pertanyaan seputar Tuberkulosis (TBC). Silakan ajukan pertanyaan yang berkaitan dengan TBC."
+        # Validate that message is TB-related
         if not is_tbc_related(user_message):
+            redirect_msg = (
+                "Sorry, I can only answer questions about tuberculosis. Please ask TB-related questions."
+                if lang == 'en'
+                else "Maaf, saya hanya dapat menjawab pertanyaan seputar Tuberkulosis (TBC). Silakan ajukan pertanyaan yang berkaitan dengan TBC."
+            )
             return jsonify({'success': True, 'response': redirect_msg})
+        
+        # Detect user intent to guide LLM
+        intent = detect_intent(user_message)
+        intent_hint = f" (User is asking about: {intent})" if intent else ""
         
         # Build context for AI
         context = ""
         if result_context:
-            context = f"\n\nUser's recent TB scan result: {result_context}"
+            context = f"\n\nKonteks: Pengguna baru saja melakukan pemeriksaan TB dengan hasil: {result_context}"
         if confidence_context:
-            context += f"\nConfidence: {confidence_context}%"
+            context += f" (Kepercayaan model: {confidence_context}%)"
         
-        # System prompt: enforce Indonesian formal style, education-only, TB-only
+        # Improved system prompt: less strict, more focused on answering the question
         system_prompt = (
-            "Anda adalah asisten medis AI yang berspesialisasi hanya pada Tuberkulosis (TBC). "
-            "Tugas Anda:\n"
-            "1) Menjawab semua pertanyaan yang berkaitan dengan TBC secara jelas, akurat, dan mudah dipahami.\n"
-            "2) Memberikan edukasi dasar: gejala, penyebab, penularan, pencegahan, diagnosis, dan pengobatan terkait TBC.\n"
-            "3) Selalu mengingatkan bahwa Anda bukan dokter dan informasi ini tidak menggantikan konsultasi medis.\n"
-            "Aturan: Jika pertanyaan berada di luar topik TBC, jangan jawab; balas dengan: 'Maaf, saya hanya dapat menjawab pertanyaan seputar Tuberkulosis (TBC). Silakan ajukan pertanyaan yang berkaitan dengan TBC.'\n"
-            "Jangan menjawab topik sensitif seperti politik, agama, atau kriminal. Jangan memberikan diagnosis pasti; hanya berikan edukasi dan anjuran berkonsultasi ke profesional kesehatan.\n"
-            "Gaya: Bahasa Indonesia formal dan ramah. Jawaban ringkas, jelas, dan profesional. Gunakan poin bila perlu dan jelaskan istilah medis yang rumit secara singkat."
+            "Anda adalah asisten pendidikan kesehatan khusus Tuberkulosis (TB/TBC) yang ramah dan berpengetahuan.\n\n"
+            "TUGAS UTAMA:\n"
+            "- Jawab pertanyaan pengguna tentang TB secara langsung, jelas, dan akurat.\n"
+            "- Jangan mulai dengan definisi TB kecuali diminta; fokus pada apa yang ditanyakan pengguna.\n"
+            "- Gunakan Bahasa Indonesia yang formal namun mudah dipahami.\n\n"
+            "PANDUAN KONTEN:\n"
+            "1. Gejala: jelaskan tanda-tanda TB yang umum dan kapan harus ke dokter.\n"
+            "2. Penularan: jelaskan bagaimana TB menyebar dan cara mencegahnya.\n"
+            "3. Pencegahan: berikan tips konkret untuk mengurangi risiko terinfeksi.\n"
+            "4. Pengobatan: jelaskan bahwa TB bisa disembuhkan dengan obat-obatan rutin 6 bulan.\n"
+            "5. Diagnosis/Pemeriksaan: jelaskan metode deteksi (Mantoux, IGRA, X-ray, sputum).\n"
+            "6. Aplikasi/Screening: jelaskan fungsi AI hanya untuk screening awal, bukan diagnosis pasti.\n\n"
+            "BATASAN & KEAMANAN:\n"
+            "- Jangan berikan diagnosis medis pasti. Selalu sarankan konsultasi ke dokter/profesional kesehatan.\n"
+            "- Gunakan bahasa hati-hati: 'berdasarkan informasi umum', 'kemungkinan', 'sebaiknya periksa ke dokter'.\n"
+            "- Jangan jawab pertanyaan non-medis atau topik sensitif (politik, agama, dll).\n"
+            "- Jangan ulang-ulang jawaban yang sama dalam satu percakapan.\n\n"
+            "GAYA:\n"
+            "- Ramah, suportif, dan tidak menakut-nakuti.\n"
+            "- Jawaban ringkas namun informatif (2-4 paragraf max).\n"
+            "- Gunakan poin/bullet jika membantu kejelasan.\n"
+            "- Hindari jargon medis berlebihan; jelaskan istilah rumit dengan sederhana."
         )
         
         # Prepare request to Gemini API
-        headers = {
-            'Content-Type': 'application/json',
-        }
+        headers = {'Content-Type': 'application/json'}
         
         payload = {
             'contents': [
                 {
                     'parts': [
-                        {'text': system_prompt + context + f"\n\nPengguna: {user_message}"}
+                        {'text': system_prompt + context + f"\n\nPertanyaan pengguna: {user_message}{intent_hint}"}
                     ]
                 }
             ],
             'generationConfig': {
-                'temperature': 0.2,
-                'topP': 0.95,
+                'temperature': 0.3,  # Slightly higher for natural variations, but still focused
+                'topP': 0.9,
                 'topK': 40,
-                'maxOutputTokens': 400,
+                'maxOutputTokens': 500,
             }
         }
         
-        # Call Gemini API (attempt and provide diagnostics if it fails)
+        # Call Gemini API
         try:
             response = requests.post(
                 f'{GEMINI_API_URL}?key={GEMINI_API_KEY}',
@@ -542,65 +616,66 @@ def chat():
             )
         except Exception as e:
             print(f"Chat request error: {e}")
-            return jsonify({'success': False, 'error': 'Gagal menghubungi layanan AI.'})
+            # Try local fallback immediately on network error
+            local_resp = local_bot_response(user_message, lang=lang)
+            if local_resp:
+                return jsonify({'success': True, 'response': local_resp, 'source': 'local_fallback'})
+            return jsonify({'success': False, 'error': 'Network error. Please try again.'})
 
         print(f"Gemini API status: {response.status_code}")
-        # Log part of the response to help debugging (server-side only)
-        try:
-            snippet = response.text[:1000]
-            print("Gemini response snippet:", snippet)
-        except Exception:
-            pass
-
+        
         bot_response = None
         if response.status_code == 200:
             try:
                 result = response.json()
-                # Try several known response shapes
-                if isinstance(result, dict):
-                    if 'candidates' in result and len(result['candidates']) > 0:
-                        candidate = result['candidates'][0]
-                        # candidate may contain content->parts
-                        if isinstance(candidate, dict):
-                            content = candidate.get('content') or {}
-                            parts = content.get('parts') if isinstance(content, dict) else None
-                            if parts and isinstance(parts, list) and len(parts) > 0:
-                                bot_response = parts[0].get('text')
-                    # Some API versions return 'output' at top-level
-                    if bot_response is None and 'output' in result and isinstance(result['output'], list):
-                        try:
-                            bot_response = result['output'][0]['content'][0].get('text')
-                        except Exception:
-                            bot_response = None
+                # Parse Gemini response
+                if isinstance(result, dict) and 'candidates' in result and len(result['candidates']) > 0:
+                    candidate = result['candidates'][0]
+                    if isinstance(candidate, dict):
+                        content = candidate.get('content', {})
+                        parts = content.get('parts', []) if isinstance(content, dict) else []
+                        if parts and len(parts) > 0:
+                            bot_response = parts[0].get('text', '')
                 
                 if bot_response:
-                    return jsonify({'success': True, 'response': bot_response})
+                    print(f"Gemini response (first 200 chars): {bot_response[:200]}")
+                    return jsonify({'success': True, 'response': bot_response, 'source': 'gemini'})
             except Exception as e:
                 print(f"Error parsing Gemini response: {e}")
+        else:
+            print(f"Gemini API error status: {response.status_code}, response: {response.text[:500]}")
 
-        # If the Gemini call failed or parsing failed, try a local fallback responder
+        # If Gemini failed, try local fallback responder
         try:
-            print("Attempting local fallback responder for chat")
-            local_resp = local_bot_response(user_message, lang=('id' if lang == 'id' else 'en'))
+            print(f"Falling back to local responder for intent: {intent}")
+            local_resp = local_bot_response(user_message, lang=lang)
             if local_resp:
-                return jsonify({'success': True, 'response': local_resp, 'fallback': 'local'})
+                return jsonify({'success': True, 'response': local_resp, 'source': 'local_fallback'})
         except Exception as e:
             print(f"Local fallback error: {e}")
 
-        # If no local response, return an error so the frontend shows an informative message
+        # Last resort: return error
         fallback_msg = (
-            "I'm having trouble connecting to the AI service. Please try again later."
+            "I'm unable to process your request right now. Please try again later or ask a different question."
             if lang == 'en'
-            else "Saya sedang mengalami masalah menghubungkan ke layanan AI. Silakan coba lagi nanti."
+            else "Saya tidak dapat memproses permintaan Anda saat ini. Silakan coba lagi nanti atau tanyakan pertanyaan lain."
         )
         return jsonify({'success': False, 'error': fallback_msg})
         
     except requests.exceptions.Timeout:
+        # Try local fallback on timeout
+        data = request.get_json() or {}
+        user_message = data.get('message', '')
+        lang = data.get('lang', 'en')
+        if user_message:
+            local_resp = local_bot_response(user_message, lang=lang)
+            if local_resp:
+                return jsonify({'success': True, 'response': local_resp, 'source': 'local_fallback'})
         error_msg = "Request timeout. Please try again." if lang == 'en' else "Permintaan habis waktu. Silakan coba lagi."
         return jsonify({'success': False, 'error': error_msg})
     except Exception as e:
         print(f"Chat API error: {e}")
-        error_msg = f"Error: {str(e)}"
+        error_msg = f"Error: {str(e)}" if str(e) else "Internal error. Please try again."
         return jsonify({'success': False, 'error': error_msg})
 
 @app.errorhandler(413)
