@@ -342,7 +342,13 @@
               >Chatbot</a
             >
           </li>
-          <li><a href="/dashboard" class="active">Dashboard</a></li>
+          <li>
+            <a
+              href="/dashboard"
+              class="{{ 'active' if request.path.startswith('/dashboard') else '' }}"
+              >{{ 'Statistics' if lang == 'en' else 'Statistik' }}</a
+            >
+          </li>
         </ul>
         <div class="lang-switch">
           <button

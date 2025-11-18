@@ -6,3 +6,4 @@ matplotlib==3.9.2
 Flask-Babel==4.0.0
 opencv-python==4.10.0.84
 requests==2.31.0
+scikit-image>=0.21.0

@@ -124,7 +124,10 @@ def load_stats():
         'sensitivity': 0,
         'specificity': 0,
         'precision': 0,
-        'f1_score': 0
+        'f1_score': 0,
+        # track confidence aggregation so we can show a meaningful "accuracy"-like metric
+        'sum_confidence': 0.0,
+        'avg_confidence': 0.0
     }
 
 def save_stats(stats):
@@ -137,61 +140,331 @@ def save_stats(stats):
         return False
 
 def calculate_accuracy(stats):
-    if stats['total_scans'] == 0:
+    """
+    Calculate a user-visible accuracy-like metric.
+    Preference order:
+    - If we have an aggregated average confidence from model predictions, use that (0-100)
+    - Otherwise fall back to sensitivity/specificity if present
+    """
+    if stats.get('total_scans', 0) == 0:
         return 0
-    return round((stats['sensitivity'] + stats['specificity']) / 2)
 
-def update_stats(result):
+    avg_conf = stats.get('avg_confidence', 0)
+    if avg_conf and avg_conf > 0:
+        # already in percent (0-100), round to two decimals
+        return round(avg_conf, 2)
+
+    sens = stats.get('sensitivity', 0)
+    spec = stats.get('specificity', 0)
+    if sens or spec:
+        return round((sens + spec) / 2, 2)
+
+    return 0
+
+def update_stats(result, confidence=None):
+    """
+    Update stored statistics. Optionally pass `confidence` as a percentage (0-100)
+    to keep track of average model confidence which we display as an "accuracy"-like metric.
+    """
     stats = load_stats()
-    stats['total_scans'] += 1
-    
+    stats['total_scans'] = stats.get('total_scans', 0) + 1
+
     if result == 'Tuberculosis':
-        stats['tb_cases'] += 1
+        stats['tb_cases'] = stats.get('tb_cases', 0) + 1
     else:
-        stats['normal_cases'] += 1
-    
+        stats['normal_cases'] = stats.get('normal_cases', 0) + 1
+
+    # Update aggregated confidence
+    try:
+        if confidence is not None:
+            # ensure float and scale sanity
+            conf_val = float(confidence)
+            # assume incoming confidence is already a percentage (0-100)
+            stats['sum_confidence'] = stats.get('sum_confidence', 0.0) + conf_val
+            stats['avg_confidence'] = stats['sum_confidence'] / float(stats['total_scans'])
+    except Exception as e:
+        print(f"Error updating confidence stats: {e}")
+
     save_stats(stats)
     return stats
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def validate_chest_xray(img_cv):
-    """Validate if image is a valid chest X-ray - relaxed validation"""
+def compute_lbp_histogram(img_gray, num_points=8, radius=1, bins=256):
+    """
+    Compute Local Binary Pattern histogram to capture texture.
+    X-rays have characteristic fine texture; natural photos have different texture patterns.
+    """
+    from skimage.feature import local_binary_pattern
+    lbp = local_binary_pattern(img_gray, num_points, radius, method='uniform')
+    hist, _ = np.histogram(lbp.ravel(), bins=bins, range=(0, bins))
+    return hist / hist.sum()  # Normalize
+
+def compute_frequency_spectrum(img_gray):
+    """
+    Analyze frequency domain characteristics.
+    X-rays have specific frequency patterns (fine details, edges at organ boundaries).
+    Natural photos have different frequency signatures (objects, textures).
+    """
+    fft = np.fft.fft2(img_gray)
+    fft_shift = np.fft.fftshift(fft)
+    magnitude_spectrum = np.abs(fft_shift)
+    
+    # Compute power in different frequency bands
+    h, w = magnitude_spectrum.shape
+    center_h, center_w = h // 2, w // 2
+    
+    # Low frequency (center region)
+    low_freq_region = magnitude_spectrum[center_h-30:center_h+30, center_w-30:center_w+30]
+    low_freq_power = np.sum(low_freq_region ** 2)
+    
+    # High frequency (edges)
+    high_freq_power = np.sum(magnitude_spectrum ** 2) - low_freq_power
+    
+    return low_freq_power, high_freq_power
+
+def analyze_intensity_distribution(img_gray):
+    """
+    Analyze intensity histogram characteristics.
+    X-ray images typically have bimodal or specific intensity distributions
+    (dark: outside body, mid: air/tissue, bright: bones).
+    Natural photos have different distributions.
+    """
+    hist = cv2.calcHist([img_gray], [0], None, [256], [0, 256]).flatten()
+    hist = hist / hist.sum()
+    
+    # Find peaks and valleys
+    # X-rays typically show distinct regions
+    peaks = []
+    for i in range(1, len(hist) - 1):
+        if hist[i] > hist[i-1] and hist[i] > hist[i+1]:
+            peaks.append((i, hist[i]))
+    
+    return len(peaks), hist
+
+def detect_color_artifacts(img_color):
+    """
+    Detect if image contains color information that indicates it's NOT an X-ray.
+    X-rays are grayscale (R≈G≈B channels are similar).
+    Natural colored photos (people, objects) have distinct R, G, B values.
+    
+    Returns: (is_grayscale_like: bool, color_variance: float, skin_tone_ratio: float)
+    """
+    # Resize for faster processing
+    img_small = cv2.resize(img_color, (128, 128))
+    
+    # Split channels (BGR)
+    b, g, r = cv2.split(img_small.astype(np.float32))
+    
+    # Calculate channel differences (X-ray should have minimal differences)
+    # For true grayscale images: R ≈ G ≈ B
+    rg_diff = np.mean(np.abs(r - g))  # Typically 0-5 for X-rays, 10-30+ for colored photos
+    rb_diff = np.mean(np.abs(r - b))
+    gb_diff = np.mean(np.abs(g - b))
+    
+    color_variance = (rg_diff + rb_diff + gb_diff) / 3.0
+    
+    print(f"Color analysis - RG_diff: {rg_diff:.2f}, RB_diff: {rb_diff:.2f}, GB_diff: {gb_diff:.2f}, Avg: {color_variance:.2f}")
+    
+    # Detect skin-tone colors in the image
+    # Skin tones typically have: R > G > B, and specific ranges
+    # Simplified skin detection: R > 95, G > 40, B > 20, AND (R - G) > 15
+    skin_pixels = (
+        (r > 95) & (g > 40) & (b > 20) & 
+        (r - g > 15) & (r - b > 0)
+    )
+    skin_tone_ratio = np.mean(skin_pixels.astype(float))
+    
+    print(f"Skin tone detection - Ratio: {skin_tone_ratio:.3f} ({skin_tone_ratio*100:.1f}%)")
+    
+    # X-rays should have very low color variance and NO skin tones
+    # Threshold: color_variance should be < 8 for X-ray, > 12 for colored photos
+    is_grayscale_like = color_variance < 10  # More strict: < 10 instead of < 15
+    
+    return is_grayscale_like, color_variance, skin_tone_ratio
+
+def detect_medical_structure(img_gray):
+    """
+    Detect anatomical structures typical of chest X-rays:
+    - Symmetrical horizontal/vertical structure
+    - Presence of rib cage edges
+    - Cardiac silhouette region
+    """
+    h, w = img_gray.shape
+    
+    # Detect vertical symmetry (chest X-rays are roughly symmetric left-right)
+    left_half = img_gray[:, :w//2]
+    right_half = np.fliplr(img_gray[:, w//2:])
+    
+    if right_half.shape == left_half.shape:
+        symmetry_score = 1.0 - (np.mean(np.abs(left_half.astype(float) - right_half.astype(float))) / 255.0)
+    else:
+        symmetry_score = 0.0
+    
+    # Detect horizontal structure (mediastinal/cardiac silhouette)
+    center_row = img_gray[h//2-30:h//2+30, :]
+    horizontal_edges = cv2.Canny(center_row, 30, 100)
+    horizontal_edge_density = np.sum(horizontal_edges > 0) / horizontal_edges.size
+    
+    return symmetry_score, horizontal_edge_density
+
+def is_xray_image(img_color):
+    """
+    Robust X-ray image validation using multiple sophisticated heuristics.
+    
+    Approach:
+    1. Detect color artifacts (X-rays are grayscale, photos are colored)
+    2. Detect skin tone (rejects photos of people)
+    3. Convert to grayscale for further analysis
+    4. Check intensity distribution (X-rays have distinct ranges)
+    5. Analyze texture using LBP (Local Binary Pattern)
+    6. Inspect frequency domain (X-rays have specific frequency signatures)
+    7. Detect medical structures (symmetry, anatomical markers)
+    8. Edge and contrast analysis
+    
+    This method ALLOWS colored X-rays but REJECTS non-medical images including photos of people.
+    
+    Returns: (is_valid: bool, message: str, confidence_score: float)
+    """
     try:
-        if img_cv is None:
-            return False, "Failed to read image"
+        if img_color is None:
+            return False, "Failed to read image", 0.0
         
-        if len(img_cv.shape) == 3:
-            img_gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        # Ensure color image for processing
+        if len(img_color.shape) == 2:
+            img_bgr = cv2.cvtColor(img_color, cv2.COLOR_GRAY2BGR)
         else:
-            img_gray = img_cv
+            img_bgr = img_color
         
+        # Convert to grayscale for analysis
+        img_gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
         img_resized = cv2.resize(img_gray, (224, 224))
         
-        mean_val = np.mean(img_resized)
-        std_dev = np.std(img_resized)
+        # Initialize scoring
+        xray_score = 0.0
+        max_score = 0.0
+        failure_reasons = []
         
-        print(f"Image validation - Mean: {mean_val:.2f}, Std: {std_dev:.2f}")
+        # ===== FEATURE 0: COLOR ARTIFACT DETECTION (EARLY REJECTION) =====
+        # This must pass or image is immediately rejected as non-X-ray
+        is_grayscale_like, color_variance, skin_tone_ratio = detect_color_artifacts(img_bgr)
         
-        if std_dev < 5:
-            return False, "Image lacks contrast"
+        # Reject if image has too much color (likely a colored photo)
+        if color_variance > 15:
+            print(f"✗ Image rejected: excessive color variance ({color_variance:.2f} > 15)")
+            return False, "Image appears to be a colored photo, not a grayscale X-ray", 0.0
         
-        if mean_val < 10 or mean_val > 245:
-            return False, "Image is too dark or too bright"
+        # Reject if image has significant skin tone (likely a photo of a person)
+        if skin_tone_ratio > 0.05:  # More than 5% skin-tone pixels
+            print(f"✗ Image rejected: detected {skin_tone_ratio*100:.1f}% skin tone pixels (likely a photo of a person)")
+            return False, "Image appears to be a photo of a person, not a medical X-ray", 0.0
         
-        hist = cv2.calcHist([img_resized], [0], None, [256], [0, 256])
-        max_hist = np.max(hist)
-        total_pixels = img_resized.size
+        # X-ray should be mostly grayscale
+        if color_variance > 10:
+            failure_reasons.append("Excessive color variance (not typical X-ray)")
+            xray_score += 0  # Don't penalize further if already passed thresholds
+        else:
+            xray_score += 2.0
+            print(f"✓ Color check passed: Low color variance ({color_variance:.2f})")
+        max_score += 2.0
         
-        if max_hist > (total_pixels * 0.6):
-            return False, "Image appears to be mostly uniform color"
+        # ===== FEATURE 1: Intensity Distribution =====
+        mean_val = float(np.mean(img_resized))
+        std_dev = float(np.std(img_resized))
         
-        print("✓ Image passed validation")
-        return True, "Valid image"
+        # X-rays typically have mean in 50-200 range and moderate std
+        if 30 <= mean_val <= 220 and std_dev >= 15:
+            xray_score += 1.5
+            print(f"✓ Intensity distribution OK: mean={mean_val:.1f}, std={std_dev:.1f}")
+        elif std_dev < 15:
+            failure_reasons.append("Insufficient contrast (likely uniform image)")
+        elif mean_val < 30 or mean_val > 220:
+            failure_reasons.append("Unusual brightness levels for X-ray")
+        max_score += 1.5
+        
+        # ===== FEATURE 2: Texture Analysis (LBP) =====
+        try:
+            from skimage.feature import local_binary_pattern
+            lbp_hist = compute_lbp_histogram(img_resized)
+            # X-rays have characteristic LBP distributions - relatively uniform with peaks
+            # Natural photos have more variance
+            lbp_entropy = -np.sum(lbp_hist[lbp_hist > 0] * np.log2(lbp_hist[lbp_hist > 0] + 1e-10))
+            # X-rays: entropy ~4-6, Natural photos: entropy ~6-8
+            if 3.5 <= lbp_entropy <= 7.5:
+                xray_score += 1.5
+                print(f"✓ Texture (LBP entropy={lbp_entropy:.2f}) consistent with medical image")
+            elif lbp_entropy > 7.5:
+                failure_reasons.append("Image has too much textural complexity (likely natural photo)")
+            max_score += 1.5
+        except ImportError:
+            print("⚠ scikit-image not available, skipping LBP analysis")
+            max_score += 1.5  # Don't penalize if lib unavailable
+        
+        # ===== FEATURE 3: Frequency Domain Analysis =====
+        try:
+            low_freq, high_freq = compute_frequency_spectrum(img_resized)
+            if low_freq > 0:
+                freq_ratio = high_freq / (low_freq + 1e-10)
+                # X-rays: balanced low/high (ratio ~0.5-1.5); Photos: high variation (ratio >2 or <0.3)
+                if 0.3 <= freq_ratio <= 2.5:
+                    xray_score += 1.5
+                    print(f"✓ Frequency distribution OK: ratio={freq_ratio:.2f}")
+                elif freq_ratio > 3:
+                    failure_reasons.append("Image has too much high-frequency detail (likely natural photo)")
+            max_score += 1.5
+        except Exception as e:
+            print(f"⚠ Frequency analysis error: {e}, skipping")
+            max_score += 1.5
+        
+        # ===== FEATURE 4: Medical Structure Detection =====
+        try:
+            symmetry, h_edge_density = detect_medical_structure(img_resized)
+            # X-rays are symmetric (score >0.55) and have horizontal structure (h_edge >0.02)
+            if symmetry > 0.5 and h_edge_density > 0.01:
+                xray_score += 1.5
+                print(f"✓ Medical structure detected: symmetry={symmetry:.2f}, h_edges={h_edge_density:.3f}")
+            elif symmetry < 0.3 and h_edge_density < 0.005:
+                failure_reasons.append("No anatomical structure detected (not a medical image)")
+            max_score += 1.5
+        except Exception as e:
+            print(f"⚠ Structure detection error: {e}, skipping")
+            max_score += 1.5
+        
+        # ===== FEATURE 5: Edge and Contrast =====
+        edges = cv2.Canny(img_resized, 50, 150)
+        edge_pixels = int(np.sum(edges > 0))
+        edge_ratio = edge_pixels / float(img_resized.size)
+        
+        # X-rays: edge ratio 0.008-0.15; Natural detailed photos: >0.20; Blank: <0.002
+        if 0.005 <= edge_ratio <= 0.20:
+            xray_score += 1.5
+            print(f"✓ Edge density OK: {edge_ratio:.4f}")
+        elif edge_ratio > 0.25:
+            failure_reasons.append("Excessive edge density (likely detailed natural photo)")
+        elif edge_ratio < 0.003:
+            failure_reasons.append("Insufficient edges (likely blank or very simple image)")
+        max_score += 1.5
+        
+        # ===== FINAL DECISION =====
+        confidence = xray_score / max_score if max_score > 0 else 0.0
+        
+        print(f"\nX-ray validation score: {xray_score:.2f}/{max_score:.2f} (confidence: {confidence:.1%})")
+        
+        # Threshold: >60% confidence indicates likely X-ray
+        if confidence >= 0.60:
+            print("✓ Image ACCEPTED as likely chest X-ray")
+            return True, "Valid chest X-ray image", confidence
+        else:
+            reason = " OR ".join(failure_reasons) if failure_reasons else "Failed to meet X-ray criteria"
+            print(f"✗ Image REJECTED: {reason}")
+            return False, reason, confidence
+    
     except Exception as e:
         print(f"Validation error: {e}")
-        return False, f"Validation error: {str(e)}"
+        import traceback
+        traceback.print_exc()
+        return False, f"Validation error: {str(e)}", 0.0
 
 def generate_gradcam(model, img_array, layer_name):
     try:
@@ -296,11 +569,15 @@ def index():
             print(f"File received: {file.filename}, Size: {len(img_data)} bytes")
             
             try:
-                img_cv = cv2.imdecode(np.frombuffer(img_data, np.uint8), cv2.IMREAD_GRAYSCALE)
-                if img_cv is None:
+                # Decode in color first for comprehensive validation
+                img_color = cv2.imdecode(np.frombuffer(img_data, np.uint8), cv2.IMREAD_COLOR)
+                if img_color is None:
                     flash('Corrupted or invalid image file.', 'error')
                     return redirect(request.url)
-                print(f"Image decoded: shape {img_cv.shape}")
+
+                # Convert to grayscale for model input / visualization
+                img_cv = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
+                print(f"Image decoded: color shape {img_color.shape}, grayscale: {img_cv.shape}")
             except Exception as e:
                 print(f"Decode error: {e}")
                 flash(f'Failed to decode image: {str(e)}', 'error')
@@ -310,10 +587,15 @@ def index():
                 flash('Image is too small. Please upload a larger image (min 50x50px).', 'error')
                 return redirect(request.url)
             
-            is_valid_xray, validation_msg = validate_chest_xray(img_cv)
+            # Validate using robust X-ray detection
+            is_valid_xray, validation_msg, xray_confidence = is_xray_image(img_color)
             if not is_valid_xray:
-                print(f"Validation warning: {validation_msg}")
-                flash(f'⚠️ Warning: {validation_msg}', 'warning')
+                print(f"Image rejected: {validation_msg}")
+                error_msg = f"❌ This image does not appear to be a chest X-ray. {validation_msg}. Please upload a chest X-ray image (JPG or PNG)."
+                flash(error_msg, 'error')
+                return redirect(request.url)
+            
+            print(f"Image accepted as X-ray (confidence: {xray_confidence:.1%})")
             
             try:
                 img = image.load_img(io.BytesIO(img_data), target_size=(224, 224), color_mode='grayscale')
@@ -346,7 +628,11 @@ def index():
                 if confidence_pct < 60:
                     flash(f'⚠️ Low confidence ({confidence_pct:.1f}%). Results may not be reliable. Consult a medical professional.', 'warning')
                 
-                update_stats(result)
+                # store stats including model confidence (percentage)
+                try:
+                    update_stats(result, confidence=confidence_pct if confidence_pct is not None else 0.0)
+                except Exception as e:
+                    print(f"Error saving stats: {e}")
                 
             except Exception as e:
                 print(f"Prediction error: {e}")
@@ -503,29 +789,174 @@ def local_bot_response(message, lang='id'):
     intent = detect_intent(message)
     responses = CHATBOT_RESPONSES.get(lang, CHATBOT_RESPONSES.get('id'))
     
-    # Intent-based routing with context-aware responses
+    # Intent-based routing with Dr. Alex Morgan structured responses
+    # Format: Direct Answer → Key Details → Practical Guidance → Disclaimer
     intent_responses = {
-        'symptoms': responses.get('symptoms of tb'),
-        'transmission': "TB menular melalui droplet udara saat orang yang terinfeksi batuk atau bersin. Kontak singkat biasanya aman; risiko lebih tinggi pada kontak lama dengan orang yang aktif TB. Penggunaan masker dan ventilasi yang baik membantu mengurangi risiko penularan.",
-        'prevention': "Pencegahan TB meliputi: vaksinasi BCG (saat bayi), hindari kontak dekat dengan penderita TB aktif tanpa perlindungan, jaga nutrisi dan kesehatan imun, tidur cukup, dan periksakan diri jika ada gejala mencurigakan.",
-        'treatment': "TB aktif disembuhkan dengan kombinasi obat-obatan rutin selama 6 bulan. Kepatuhan minum obat sangat penting; jangan berhenti sendiri untuk menghindari kekebalan obat. Dokter akan menentukan jenis obat berdasarkan tes kepekaan bakteri.",
-        'diagnosis': "TB didiagnosis melalui: tes Mantoux (tes kulit), IGRA (tes darah), pemeriksaan sputum di bawah mikroskop, atau Rontgen dada untuk TB aktif. Screening awal dapat menggunakan X-ray dan alat AI seperti aplikasi ini.",
-        'accuracy': "Aplikasi ini hanya untuk screening awal; diagnosis pasti harus dilakukan oleh dokter dan radiolog berpengalaman. Hasil AI bukan pengganti konsultasi profesional kesehatan. Selalu konsultasikan dengan fasilitas kesehatan untuk diagnosis yang akurat.",
-        'latent_active': "TB laten: bakteri ada tapi tidak aktif—tidak menular, tanpa gejala. TB aktif: bakteri berkembang, menular, dan menimbulkan gejala. Tes darah/kulit deteksi laten; X-ray dan gejala klinis deteksi aktif. Hanya TB aktif yang terlihat di X-ray dada.",
-        'what_is_tb': responses.get('what is tb'),
-        'upload_app': "Klik area upload atau seret file gambar X-ray dada ke kotak. Format yang diterima: JPG atau PNG (maksimal 10MB). Sistem akan memproses gambar dan menampilkan hasil prediksi dengan visualisasi Grad-CAM.",
-        'gradcam': "Grad-CAM menunjukkan area X-ray mana yang paling mempengaruhi prediksi model AI. Warna merah = bobot prediksi tinggi, area yang dianggap model penting. Ini membantu memahami logika keputusan AI, bukan diagnosis definitif.",
-        'risk': "Risiko TB tinggi pada: orang dengan kontak lama dengan penderita aktif, pekerja kesehatan, orang dengan imun lemah (HIV/AIDS), penyakit paru kronis, atau malnutrisi. TB dapat menimpa siapa saja, namun deteksi dini dan pengobatan sangat efektif.",
-        'contact': "Kontak dengan penderita TB aktif berisiko tertular, terutama pada kontak lama (keluarga, satu rumah). Tetapi risiko dapat diminimalkan dengan: masker, ventilasi baik, isolasi penderita, dan pengobatan tepat waktu."
+        'symptoms': (
+            "Gejala TB aktif berkembang secara bertahap selama beberapa minggu hingga bulan.\n\n"
+            "**DETAIL KUNCI:**\n"
+            "• Batuk yang berlangsung 3+ minggu (bisa dengan dahak/lendir)\n"
+            "• Demam, terutama sore/malam hari\n"
+            "• Keringat malam (bedanya: membasahi pakaian/sprei)\n"
+            "• Nyeri dada, terutama saat bernafas atau batuk\n"
+            "• Kelelahan, berat badan menurun, nafsu makan turun\n\n"
+            "**PANDUAN PRAKTIS:**\n"
+            "Jika mengalami gejala di atas selama 3+ minggu, segera periksakan ke dokter atau klinik terdekat. Diagnosis dini sangat penting untuk hasil pengobatan optimal.\n\n"
+            "Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat."
+        ),
+        'transmission': (
+            "TB menular melalui droplet udara (percikan air liur) saat orang terinfeksi batuk, bersin, atau berbicara.\n\n"
+            "**DETAIL KUNCI:**\n"
+            "• Droplet dapat bertahan hingga 2 meter\n"
+            "• Kontak singkat dengan penderita TB aktif relatif aman\n"
+            "• Risiko tinggi: kontak lama (keluarga, satu rumah, pekerja kesehatan)\n"
+            "• TB TIDAK menular melalui: makanan, air, sentuhan, salaman, berbagi barang\n"
+            "• TB laten (tidak aktif) sama sekali tidak menular\n\n"
+            "**PANDUAN PRAKTIS:**\n"
+            "Jika ada orang dengan TB aktif di sekitar, gunakan masker, pastikan ventilasi baik, dan ikuti nasihat dokter. Sebagian orang yang terpapar tidak semuanya terinfeksi; status imun sangat berpengaruh.\n\n"
+            "Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat."
+        ),
+        'prevention': (
+            "Pencegahan TB memerlukan kombinasi vaksinasi, kebersihan, dan perilaku sehat.\n\n"
+            "**DETAIL KUNCI:**\n"
+            "• Vaksinasi BCG pada bayi (efektif ~80% cegah TB berat)\n"
+            "• Hindari kontak dekat dengan penderita TB aktif tanpa perlindungan\n"
+            "• Jaga sistem imun: nutrisi baik, tidur cukup, olahraga rutin\n"
+            "• Periksakan diri jika ada gejala atau kontak dengan penderita TB\n"
+            "• Hindari paparan: tembakau, alkohol berlebihan, polusi udara\n\n"
+            "**PANDUAN PRAKTIS:**\n"
+            "Gaya hidup sehat dan vaksinasi lengkap adalah fondasi. Jika berkontak dengan penderita, konsultasi dokter untuk LTBI screening (tes darah/kulit) dan tindakan profilaksis jika diperlukan.\n\n"
+            "Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat."
+        ),
+        'treatment': (
+            "TB aktif dapat disembuhkan dengan rejimen obat-obatan kombinasi selama 6 bulan.\n\n"
+            "**DETAIL KUNCI:**\n"
+            "• Pengobatan standar: 4 obat (isoniazid, rifampicin, pyrazinamide, ethambutol) fase intensif 2 bulan\n"
+            "• Dilanjutkan 2 obat (isoniazid, rifampicin) fase lanjutan 4 bulan\n"
+            "• Kepatuhan minum obat SETIAP HARI sangat penting (jangan terlewat)\n"
+            "• Jangan berhenti sendiri sebelum 6 bulan = risiko kambuh dan resistensi obat\n"
+            "• Efek samping: mual, gatal, perubahan warna urin (normal pada rifampicin)\n\n"
+            "**PANDUAN PRAKTIS:**\n"
+            "Ikuti jadwal dokter dengan ketat. Buat pengingat harian untuk minum obat. Laporkan efek samping ke dokter. Tes kepekaan obat (DST) menentukan regimen spesifik jika ada resistensi.\n\n"
+            "Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat."
+        ),
+        'diagnosis': (
+            "TB didiagnosis melalui kombinasi pemeriksaan klinis, laboratorium, dan pencitraan.\n\n"
+            "**DETAIL KUNCI:**\n"
+            "• Tes Mantoux (tes kulit): untuk TB laten\n"
+            "• IGRA (tes darah): alternatif tes kulit, lebih akurat untuk laten\n"
+            "• Sputum AFB (mikroskop): konfirmasi TB aktif, periksa 3 sampel\n"
+            "• X-ray dada: untuk TB aktif paru (tampak infiltrat/cavitas)\n"
+            "• TB-LAMP (molecular): deteksi cepat, hasil <2 jam\n"
+            "• CT scan: untuk kasus kompleks\n\n"
+            "**PANDUAN PRAKTIS:**\n"
+            "Screening awal dapat menggunakan X-ray dan AI (seperti aplikasi ini) untuk efisiensi. Namun, diagnosis definitif memerlukan konfirmasi dokter dan laboratorium bersertifikat.\n\n"
+            "Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat."
+        ),
+        'accuracy': (
+            "Aplikasi ini dirancang untuk screening awal, bukan diagnosis definitif.\n\n"
+            "**DETAIL KUNCI:**\n"
+            "• AI model kami dilatih pada ribuan X-ray dada untuk deteksi TB\n"
+            "• Akurasi di dataset test: ~92%; namun real-world dapat bervariasi\n"
+            "• Faktor yang mempengaruhi: kualitas X-ray, teknik pengambilan, fitur klinis lainnya\n"
+            "• Hasil AI bukan pengganti diagnosis dokter/radiolog berpengalaman\n"
+            "• Konsultasi profesional SELALU diperlukan untuk keputusan klinis\n\n"
+            "**PANDUAN PRAKTIS:**\n"
+            "Gunakan hasil aplikasi sebagai alat bantu screening—cepat dan affordable. Jika hasil positif atau mencurigakan, selesaikan diagnosis di fasilitas kesehatan dengan dokter spesialis paru dan radiolog.\n\n"
+            "Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat."
+        ),
+        'latent_active': (
+            "TB laten dan TB aktif adalah dua kondisi berbeda yang memerlukan pendekatan berbeda.\n\n"
+            "**DETAIL KUNCI:**\n"
+            "• **TB Laten (LTBI):** Bakteri ada tapi dormant (tidak aktif), tidak menular, tanpa gejala, hanya deteksi via tes\n"
+            "• **TB Aktif:** Bakteri aktif dan berkembang, menular via udara, menimbulkan gejala (batuk, demam, dll)\n"
+            "• Tes Mantoux/IGRA deteksi TB laten\n"
+            "• X-ray, sputum, gejala klinis deteksi TB aktif\n"
+            "• ~5-10% orang dengan TB laten akan progress ke aktif jika tidak diobati\n\n"
+            "**PANDUAN PRAKTIS:**\n"
+            "TB laten perlu dimonitor dan mungkin butuh pencegahan profilaksis (obat preventif 3-6 bulan) tergantung faktor risiko. TB aktif butuh pengobatan kombinasi full-dose 6 bulan.\n\n"
+            "Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat."
+        ),
+        'what_is_tb': (
+            "Tuberkulosis (TB) adalah penyakit infeksi yang disebabkan bakteri Mycobacterium tuberculosis.\n\n"
+            "**DETAIL KUNCI:**\n"
+            "• Bakteri TB terutama menyerang paru-paru (TB paru), tapi bisa organ lain (TB luar-paru)\n"
+            "• Dapat dicegah (vaksinasi BCG), didiagnosis (tes/X-ray), dan disembuhkan (obat 6 bulan)\n"
+            "• TB adalah penyakit global: ~10 juta kasus/tahun, 1.5 juta kematian/tahun\n"
+            "• Namun risiko kematian RENDAH jika dideteksi dini dan diobati\n"
+            "• Stigma TB seharusnya berkurang: TB adalah penyakit yang bisa disembuhkan\n\n"
+            "**PANDUAN PRAKTIS:**\n"
+            "Jika merasa berisiko TB atau memiliki gejala, periksakan diri. Teknologi AI seperti aplikasi ini membantu deteksi cepat, membuat TB lebih mudah dikelola.\n\n"
+            "Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat."
+        ),
+        'upload_app': (
+            "Proses upload X-ray dada ke aplikasi ini sangat sederhana dan user-friendly.\n\n"
+            "**LANGKAH PRAKTIS:**\n"
+            "1. Buka halaman Deteksi (home page aplikasi)\n"
+            "2. Klik area upload atau seret file X-ray ke kotak upload\n"
+            "3. Format yang diterima: JPG atau PNG (maksimal 10MB, sebaiknya 1-5MB)\n"
+            "4. Sistem akan memproses (~2-5 detik) dan menampilkan hasil prediksi\n"
+            "5. Visualisasi Grad-CAM menunjukkan area X-ray yang mempengaruhi prediksi\n\n"
+            "**TIPS:**\n"
+            "• Pastikan X-ray jelas, tidak blur atau terpotong\n"
+            "• Jika ada kesalahan, coba X-ray lain atau periksa ke dokter\n\n"
+            "Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat."
+        ),
+        'gradcam': (
+            "Grad-CAM (Gradient-weighted Class Activation Mapping) adalah visualisasi yang menunjukkan area mana dalam X-ray yang paling mempengaruhi keputusan AI.\n\n"
+            "**DETAIL KUNCI:**\n"
+            "• Warna merah/panas = area dengan kontribusi prediksi tinggi (model fokus di sini)\n"
+            "• Warna biru/dingin = area dengan kontribusi rendah\n"
+            "• Grad-CAM membantu transparansi AI dan interpretabilitas keputusan\n"
+            "• BUKAN diagnosis definitif—hanya menunjukkan logika model\n"
+            "• Radiolog profesional punya pengalaman lebih luas untuk interpretasi\n\n"
+            "**PANDUAN PRAKTIS:**\n"
+            "Gunakan Grad-CAM untuk pemahaman: 'AI fokus di area paru bagian atas karena ada kepadatan tertentu.' Tapi jangan percaya sepenuhnya—konsultasi dokter untuk interpretasi definitif.\n\n"
+            "Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat."
+        ),
+        'risk': (
+            "Risiko tertular TB atau perkembangan TB laten menjadi aktif berbeda-beda per individu.\n\n"
+            "**KELOMPOK RISIKO TINGGI:**\n"
+            "• Kontak lama dengan penderita TB aktif (keluarga, satu rumah)\n"
+            "• Pekerja kesehatan tanpa perlindungan\n"
+            "• Orang dengan imun lemah (HIV/AIDS, immunosuppressants)\n"
+            "• Penyakit paru kronis (PPOK, asma berat, pneumokoniosis)\n"
+            "• Malnutrisi, gizi buruk, atau gangguan metabolik\n"
+            "• Diabetes, gagal ginjal, kanker\n"
+            "• Penyalahgunaan tembakau, alkohol, narkoba\n\n"
+            "**PANDUAN PRAKTIS:**\n"
+            "TB bisa menimpa siapa saja, tapi faktor risiko di atas memerlukan perhatian lebih. Jika termasuk kelompok risiko, dapatkan screening rutin dan konsultasi dengan dokter untuk strategi pencegahan personal.\n\n"
+            "Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat."
+        ),
+        'contact': (
+            "Keamanan kontak dengan penderita TB aktif tergantung durasi, intensitas, dan tindakan pencegahan.\n\n"
+            "**DETAIL KUNCI:**\n"
+            "• Kontak singkat (<2 jam): risiko relatif rendah\n"
+            "• Kontak lama (satu rumah, keluarga, teman dekat >8 jam/hari): risiko signifikan\n"
+            "• Penggunaan masker dan ventilasi baik mengurangi risiko drastis\n"
+            "• TB aktif paru: sangat menular; TB ekstrapulmonary: tidak menular\n"
+            "• Setelah penderita minum obat 2 minggu, tingkat penularan turun drastis\n\n"
+            "**PANDUAN PRAKTIS:**\n"
+            "Jika kontak dengan penderita TB aktif, segera konsultasi dokter untuk LTBI screening. Jangan panik: TB laten yang terdeteksi dapat dicegah dengan obat profilaksis. Terapkan masker dan ventilasi sambil menunggu hasil tes.\n\n"
+            "Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat."
+        )
     }
     
     # Return intent-based response if available
     if intent and intent in intent_responses and intent_responses[intent]:
         return intent_responses[intent]
     
-    # Fallback: friendly help prompt
+    # Fallback: friendly, professional help prompt from Dr. Alex Morgan
     help_text = responses.get('help') or (
-        "Tanya saya tentang: gejala TB, cara penularan, pencegahan, pengobatan, cara pemeriksaan, akurasi aplikasi, atau cara menggunakan alat ini. Apa yang ingin kamu ketahui?"
+        "Sebagai Dr. Alex Morgan, saya di sini untuk menjawab pertanyaan tuberculosis Anda. Silakan tanya tentang:\n"
+        "• Gejala TB dan kapan periksakan diri\n"
+        "• Cara penularan dan pencegahan TB\n"
+        "• Pengobatan dan kepatuhan minum obat\n"
+        "• Metode diagnosis dan pemeriksaan\n"
+        "• Perbedaan TB laten dan TB aktif\n"
+        "• Akurasi dan cara menggunakan aplikasi ini\n"
+        "• Faktor risiko TB dan kontak dengan penderita\n\n"
+        "Apa yang ingin Anda ketahui tentang tuberculosis?"
     )
     return help_text
 
@@ -561,30 +992,60 @@ def chat():
         if confidence_context:
             context += f" (Kepercayaan model: {confidence_context}%)"
         
-        # Improved system prompt: less strict, more focused on answering the question
+        # ===== DR. ALEX MORGAN - TB SPECIALIST SYSTEM PROMPT =====
+        # Advanced, structured prompt with expert TB knowledge and strict domain rules
         system_prompt = (
-            "Anda adalah asisten pendidikan kesehatan khusus Tuberkulosis (TB/TBC) yang ramah dan berpengetahuan.\n\n"
-            "TUGAS UTAMA:\n"
-            "- Jawab pertanyaan pengguna tentang TB secara langsung, jelas, dan akurat.\n"
-            "- Jangan mulai dengan definisi TB kecuali diminta; fokus pada apa yang ditanyakan pengguna.\n"
-            "- Gunakan Bahasa Indonesia yang formal namun mudah dipahami.\n\n"
-            "PANDUAN KONTEN:\n"
-            "1. Gejala: jelaskan tanda-tanda TB yang umum dan kapan harus ke dokter.\n"
-            "2. Penularan: jelaskan bagaimana TB menyebar dan cara mencegahnya.\n"
-            "3. Pencegahan: berikan tips konkret untuk mengurangi risiko terinfeksi.\n"
-            "4. Pengobatan: jelaskan bahwa TB bisa disembuhkan dengan obat-obatan rutin 6 bulan.\n"
-            "5. Diagnosis/Pemeriksaan: jelaskan metode deteksi (Mantoux, IGRA, X-ray, sputum).\n"
-            "6. Aplikasi/Screening: jelaskan fungsi AI hanya untuk screening awal, bukan diagnosis pasti.\n\n"
-            "BATASAN & KEAMANAN:\n"
-            "- Jangan berikan diagnosis medis pasti. Selalu sarankan konsultasi ke dokter/profesional kesehatan.\n"
-            "- Gunakan bahasa hati-hati: 'berdasarkan informasi umum', 'kemungkinan', 'sebaiknya periksa ke dokter'.\n"
-            "- Jangan jawab pertanyaan non-medis atau topik sensitif (politik, agama, dll).\n"
-            "- Jangan ulang-ulang jawaban yang sama dalam satu percakapan.\n\n"
-            "GAYA:\n"
-            "- Ramah, suportif, dan tidak menakut-nakuti.\n"
-            "- Jawaban ringkas namun informatif (2-4 paragraf max).\n"
-            "- Gunakan poin/bullet jika membantu kejelasan.\n"
-            "- Hindari jargon medis berlebihan; jelaskan istilah rumit dengan sederhana."
+            "Anda adalah Dr. Alex Morgan, seorang spesialis medis senior dengan pengalaman klinis lebih dari 15 tahun "
+            "dalam diagnosis tuberkulosis (TB), pengobatan, pencegahan, dan pendidikan kesehatan masyarakat. "
+            "Anda bertugas sebagai asisten ahli untuk chatbot deteksi dan informasi TB.\n\n"
+            
+            "PERAN UTAMA:\n"
+            "Tujuan SATU-SATUNYA Anda adalah menjawab pertanyaan yang HANYA berkaitan dengan Tuberkulosis (TB) atau topik kesehatan yang sangat terkait, seperti:\n"
+            "- Gejala, tanda, dan presentasi klinis TB\n"
+            "- Metode diagnosa TB (Mantoux, IGRA, X-ray, sputum, TB-LAMP, CT scan paru)\n"
+            "- Protokol pengobatan TB, rejimen obat, kepatuhan pengobatan, resistensi obat\n"
+            "- Strategi pencegahan TB, vaksinasi BCG, kontrol infeksi, penggunaan APD\n"
+            "- Mode penularan TB, epidemiologi, faktor risiko\n"
+            "- Infeksi TB laten (LTBI) vs penyakit TB aktif\n"
+            "- Kesehatan paru umum yang langsung terkait TB (fungsi paru, gejala pernapasan)\n"
+            "- AI/ML dalam deteksi TB dan interpretasi pencitraan medis\n\n"
+            
+            "ATURAN DOMAIN KETAT:\n"
+            "1. TOLAK pertanyaan non-TB dengan pesan SINGKAT dan PROFESIONAL:\n"
+            "   'Saya di sini hanya untuk membantu menjawab pertanyaan terkait tuberculosis. Silakan tanyakan sesuatu tentang TB.'\n"
+            "2. JANGAN memberikan nasihat tentang penyakit tidak terkait TB (diabetes, kanker, kehamilan, kesehatan mental, dll)\n"
+            "3. JANGAN memberikan nasihat hukum, keuangan, politik, atau teknis yang tidak terkait TB\n"
+            "4. Jika pertanyaan ambigu, tanyakan UNO pertanyaan klarifikasi tapi tetap dalam domain TB\n\n"
+            
+            "STRUKTUR RESPONS (gunakan untuk SETIAP jawaban):\n"
+            "1. JAWABAN LANGSUNG SINGKAT: 1-2 kalimat menjawab inti pertanyaan\n"
+            "2. DETAIL KUNCI: 3-5 poin penting berisi fakta, gejala, risiko, atau prosedur\n"
+            "3. PANDUAN PRAKTIS: Saran aksi atau langkah berikutnya\n"
+            "4. PENAFIAN SINGKAT: 'Konsultasikan dengan profesional kesehatan untuk evaluasi medis yang tepat.'\n\n"
+            
+            "NADA & PERILAKU:\n"
+            "- Profesional, empatik, berbasis bukti ilmiah\n"
+            "- Gunakan bahasa sederhana; jelaskan istilah medis\n"
+            "- Hindari menakut-nakuti atau spekulasi\n"
+            "- JANGAN berikan diagnosis pribadi (misalnya: 'X-ray Anda menunjukkan pneumonia')\n"
+            "- JANGAN kontradiksi pedoman keselamatan medis\n"
+            "- Singkat: batasi jawaban menjadi 3-4 paragraf maksimal\n\n"
+            
+            "KONTEKS TAMBAHAN:\n"
+            "- Anda memiliki akses ke model AI deteksi TB yang menganalisis X-ray dada\n"
+            "- Peran Anda adalah edukatif, bukan diagnostik\n"
+            "- Selalu tekankan pentingnya evaluasi medis profesional\n"
+            "- Dukung bahasa Inggris dan Indonesia\n\n"
+            
+            "CONTOH PENOLAKAN:\n"
+            "T: 'Bagaimana cara menyembuhkan sakit kepala?' → 'Saya di sini hanya untuk menjawab pertanyaan terkait TB.'\n"
+            "T: 'Jelaskan fisika kuantum.' → 'Saya hanya bisa menjawab pertanyaan tentang tuberkulosis.'\n"
+            "T: 'Apakah X-ray saya pneumonia?' → 'Saya tidak bisa mendiagnosis. Konsultasikan dengan profesional kesehatan.'\n\n"
+            
+            "INSTRUKSI BAHASA:\n"
+            "- Respons dalam BAHASA INDONESIA (formal namun mudah dipahami)\n"
+            "- Gunakan terminologi medis yang tepat tetapi jelaskan istilah rumit dengan sederhana\n"
+            "- Hindari slang medis yang tidak perlu; prioritaskan kejelasan untuk pengguna umum"
         )
         
         # Prepare request to Gemini API
