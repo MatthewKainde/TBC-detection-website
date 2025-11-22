@@ -1,11 +1,11 @@
 {
-  "total_scans": 37,
-  "tb_cases": 24,
+  "total_scans": 38,
+  "tb_cases": 25,
   "normal_cases": 13,
   "sensitivity": 0,
   "specificity": 0,
   "precision": 0,
   "f1_score": 0,
-  "sum_confidence": 3332.6267318725586,
-  "avg_confidence": 90.0709927533124
+  "sum_confidence": 3432.497398376465,
+  "avg_confidence": 90.32887890464382
 }
